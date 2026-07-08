@@ -184,6 +184,32 @@ air/water sign of the dimensionless Henry constant ($\log(M/M)$ fit with slope $
 gas/water process and $+1.00$ under water/gas) and cracks opaque strings a human would struggle
 with, e.g.\ \texttt{MPv/(RTCw)} ($\ln$, $R=0.99$) and \texttt{logK=y/x at 1 atm} ($R=0.99$).
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.72\textwidth]{outputs/unit_calibration_trajectory.png}
+\caption{The active-learning loop as an outer fixed-point iteration. Held-out FreeSolv MAE (teal)
+stays flat while coverage (ochre) grows as the gate is annealed strict$\to$loose; the loop
+self-terminates when the loosest gate admits nothing.}
+\label{fig:traj}
+\end{figure}
+
+\subsection{From regex switchboard to a declarative rule engine}
+\label{sec:rules}
+The hand-written switchboard grew brittle --- the two conversion bugs above were both parsing
+faults, not physics errors. We therefore reimplemented conversion as a small \emph{dimensional-
+analysis rule engine} (\texttt{unit\_rules.py}): a unit string is de-wrapped of any
+$\log/\ln/{-}\log$ prefix, tokenised into a product/quotient of $\langle$prefix$\rangle\langle$base$\rangle^{p}$
+factors, reduced to a net dimension signature (pressure, amount, volume, mass, mole-fraction,
+energy), and \emph{classified} into a physical quantity (vapour pressure, concentration,
+mole-fraction, the four Henry forms, free energy, or a dimensionless ratio) that is then converted.
+Adding a unit is a one-line table entry, never a new branch. The engine converts \num{65} distinct
+(unit,\,process) combinations versus \num{57} for the switchboard, resolves the mass-fraction /
+Henry-ratio ambiguity by process (a same-dimension ratio under AQSOL is a solubility fraction, under
+KWG/KGW a Henry ratio), and \emph{improves} FreeSolv agreement to \SI{0.275}{\kcal} ($R=0.972$). The
+handful of strings it still cannot infer (\texttt{MPv/(RTCw)}, \texttt{logK=y/x at 1 atm}) are exactly
+the exotic named expressions the active-learning loop calibrates --- a clean division of labour
+between deterministic rules and data-driven fallback.
+
 \section{Methods}
 
 \subsection{Homoset: a proportional-similarity consensus gate}
@@ -250,9 +276,18 @@ those with no reference measurement.
 
 \section{Results}
 We score each reconciled point estimate against FreeSolv on the 561-molecule overlap
-(Table~\ref{tab:main}). Both methods beat the raw mean and median at all obs counts; the gap
-widens on the 193 molecules the Homoset gate flags as conflicted, where reconciliation matters
-most.
+(Table~\ref{tab:main}, Fig.~\ref{fig:scatter}). On the corrected data the raw median is already
+good, so the overall margins are small; the methods separate on the 286 molecules the Homoset gate
+flags as conflicted, where mixle-robust leads.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{outputs/guthrie_homoset_vs_mixle.png}
+\caption{Reconciled estimates vs FreeSolv truth. Left/centre: Homoset ($L{=}0.6$) and mixle-gaussian
+both hug the diagonal. Right: the two methods against each other, each molecule coloured by
+$|\text{Homoset err}|-|\text{mixle err}|$ (green $=$ mixle closer to FreeSolv).}
+\label{fig:scatter}
+\end{figure}
 
 \begin{table}[t]
 \centering

@@ -68,6 +68,23 @@ to *rescue* the log spellings and admitted 26 units; now the switchboard convert
 the loop's remaining job is smaller — the desired outcome.) See
 `outputs/unit_calibration_trajectory.png`; expanded set `guthrie_dg_observations_iter_expanded.csv`.
 
+## 1c. Rule engine replaces the regex switchboard (`unit_rules.py`)
+Both conversion bugs above were *parsing* faults, so the switchboard was rebuilt as a declarative
+**dimensional-analysis rule engine**: de-wrap `log/ln/-log` → tokenise into
+`⟨prefix⟩⟨base⟩^power` factors → reduce to a net dimension signature (pressure/amount/volume/mass/
+mole-fraction/energy) → **classify** into a physical quantity (VP, concentration, mole-fraction, the
+4 Henry forms, free energy, dimensionless ratio) → convert. **Adding a unit = one table row**, never
+a new code branch.
+
+- Converts **65 distinct (unit,process) combos vs 57** for the switchboard; resolves the
+  mass-fraction-vs-Henry-ratio ambiguity by *process* (same-dimension ratio under AQSOL = solubility
+  fraction; under KWG/KGW = Henry ratio).
+- **Improves** FreeSolv agreement: median-MAE **0.275, R 0.972** (vs switchboard 0.30 / 0.965).
+- The ~10 it still can't infer (`MPv/(RTCw)`, `logK=y/x at 1 atm`, exotic VP edge cases) are exactly
+  what the active-learning loop calibrates — deterministic rules + data-driven fallback.
+
+Output: `outputs/guthrie_dg_observations_rules.csv`, `outputs/rule_engine_report.json`.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
