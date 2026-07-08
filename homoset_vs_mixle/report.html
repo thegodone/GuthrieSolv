@@ -119,6 +119,31 @@
 </header>
 
 <section>
+  <h2>Cleaning the units: a rule engine, not a regex</h2>
+  <p class="sub">The 172 unit strings are converted by a declarative <strong>dimensional-analysis rule
+  engine</strong> (<code>unit_rules.py</code>) that replaced the brittle regex switchboard:
+  de-wrap <code>log/ln/−log</code> → tokenise into ⟨prefix⟩⟨base⟩<sup>power</sup> factors → reduce to a
+  net dimension signature (pressure · amount · volume · mass · mole-fraction · energy) → classify into a
+  physical quantity → convert. <strong>Adding a unit is one table row, never a new branch.</strong></p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>approach</th><th>(unit,process) converted</th><th>FreeSolv MAE</th><th>R</th><th>extend by</th></tr></thead>
+    <tbody>
+      <tr><td>regex switchboard</td><td>57</td><td>0.30</td><td>0.965</td><td>new code branch</td></tr>
+      <tr><td><span class="m-mx">rule engine</span></td><td class="win">65</td><td class="win">0.275</td><td class="win">0.972</td><td>one table row</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="foot">Four parsing bugs the switchboard hid were the reason to rebuild: mole-fraction Henry
+  off by RT·ln1000; a process-dependent Henry-ratio direction (KWG invert / KGW keep); a one-char regex
+  (<code>^log10?</code> needs "log<b>1</b>") that silently dropped every <code>log(M)</code>/<code>log(atm)</code>
+  spelling; and mole-fraction solubility. The engine also resolves the mass-fraction-vs-Henry-ratio
+  ambiguity by <em>process</em> (AQSOL = solubility fraction; KWG/KGW = Henry ratio). The ~10 exotic named
+  strings it can't infer (<code>MPv/(RTCw)</code>, <code>logK=y/x at 1 atm</code>) are exactly what the
+  active-learning loop below calibrates — deterministic rules + data-driven fallback.</p>
+</section>
+
+<section>
   <h2>Iterative fixed-point loop for the long-tail units</h2>
   <p class="sub">The hand-coded switchboard handles the frequent units; an active-learning loop recovers
   much of the rest <em>without</em> hand-coding each one — reusing the Homoset noise gate as the
@@ -280,6 +305,28 @@
   <p class="foot">Each has two sources ~5 kcal/mol apart; the raw median splits the difference and
   Homoset can't align (nothing to align to), while mixle-robust trusts the lower-bias source and lands
   near the FreeSolv truth. These are real literature disagreements, not conversion artifacts.</p>
+</section>
+
+<section>
+  <h2>Guthrie's own curation — and we beat it</h2>
+  <p class="sub">The original Excel carries columns the flat CSV dropped: <code>final</code> — Guthrie's
+  <em>own</em> converted ΔG<sub>hyd</sub> (737 rows) — a per-measurement <strong>trust flag</strong>
+  (<code>error1</code> = 1.93 kcal/mol marks data he judged "not trustworthy"), and pH conditions.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>estimate (176 shared molecules vs FreeSolv)</th><th>MAE</th><th>R</th></tr></thead>
+    <tbody>
+      <tr><td>Guthrie's own <code>final</code> ΔG</td><td>0.267</td><td>0.943</td></tr>
+      <tr><td><span class="m-mx">ours</span> (rule engine + median consensus)</td><td class="win">0.153</td><td class="win">0.988</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="foot">On the very molecules the original curator hand-converted, our automated multi-source
+  pooling is <strong>closer to FreeSolv</strong> — redundancy across measurements out-curates a single
+  expert value. And his trust flag <em>hurts as a hard filter</em>: dropping the 2,884 "untrustworthy"
+  observations makes FreeSolv agreement <em>worse</em> (0.195 → 0.240), so it belongs as a soft mixle
+  weight, not a cut. His pH tags (92 ionizable-drug rows) keep acid/base solubilities at different pH
+  from being naively pooled.</p>
 </section>
 
 <section id="figures">
