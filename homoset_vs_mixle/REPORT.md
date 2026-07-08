@@ -37,7 +37,11 @@ clean reference); Henry/pairing routes are noisier (the conflict source).
 
 ## 2. The two methods
 
-**Homoset** (faithful port of `merge_bbb_homoset_v2.py` / `build_delta_hvap_v2_homoset.py`):
+**Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
+the 1970s–80s to standardize scattered literature values of human **odor detection thresholds**
+(Devos, Patte, Rouault, Laffort & Van Gemert, *Standardized Human Olfactory Thresholds*, IRL
+Press / Oxford Univ. Press, 1990); applied unchanged here to hydration free energies
+(faithful port of `merge_bbb_homoset_v2.py` / `build_delta_hvap_v2_homoset.py`):
 sources = measurement processes, with FEOH+DGS as the trusted **reference**.
 - *Stage 1 — source alignment via the PS gate.* For each non-reference source, take
   its per-molecule diffs vs the reference and compute

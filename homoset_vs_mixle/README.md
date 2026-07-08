@@ -37,6 +37,9 @@ anchor it to real experimental noise and it filters bad sources); mixle is the b
 Use both. See `REPORT.md` / `PAPER.tex` for details.
 
 ## References
-- Homoset PS gate — ported from the user's `merge_bbb_homoset_v2.py` / `build_delta_hvap_v2_homoset.py`.
+- Homoset PS gate — the "homogeneous set" / proportional-similarity standardization procedure from
+  Devos, Patte, Rouault, Laffort & Van Gemert, *Standardized Human Olfactory Thresholds* (IRL Press /
+  Oxford Univ. Press, 1990), originally developed in the 1970s–80s to harmonize human odor detection
+  thresholds; ported here from `merge_bbb_homoset_v2.py` / `build_delta_hvap_v2_homoset.py`.
 - mixle hierarchical partial pooling — [gmboquet/mixle](https://github.com/gmboquet/mixle) (`Normal(Normal(mu0,tau),sigma)`), reproduced in numpy.
 - Ground truth — [MobleyLab/FreeSolv](https://github.com/MobleyLab/FreeSolv).

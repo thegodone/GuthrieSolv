@@ -47,7 +47,9 @@ hydration free energies (\num{12027} observations over \num{2473} molecules,
 temperature-corrected, keyed by InChIKey), validating every conversion route
 against the curated FreeSolv benchmark; and (ii) use the resulting redundant,
 multi-source, per-molecule observations to compare two families of reconciliation
-method. The first is a \emph{proportional-similarity} (Homoset) gate that aligns
+method. The first is a \emph{proportional-similarity} (Homoset) gate --- a method originally devised in
+the 1970s--1980s to standardize scattered human olfactory detection-threshold
+data~\cite{devos1990} --- that aligns
 whole measurement sources by a median offset and accepts them into a consensus
 only when a $\chi^2$-based concordance statistic exceeds a critical value; the
 second is a \emph{mixle}-style hierarchical Gaussian partial-pooling model that
@@ -140,7 +142,15 @@ Henry and pairing routes are the noisier, conflict-generating sources.
 \section{Methods}
 
 \subsection{Homoset: a proportional-similarity consensus gate}
-The Homoset method treats each measurement type as a data \emph{source} and the direct
+The Homoset (``homogeneous set'') method is not new: it was developed in the 1970s--1980s to
+standardize scattered literature values of \emph{human olfactory detection thresholds}, and is
+the procedure behind the harmonized inventory of Devos, Patte, Rouault, Laffort and Van
+Gemert~\cite{devos1990}. Faced with the same problem we have here --- many disagreeing
+measurements of one quantity per compound, from heterogeneous sources --- it builds a
+``homogeneous set'' by aligning sources with a median offset and admitting them only when a
+proportional-similarity (PS) index clears a $\chi^2$ critical value. We apply that classical
+odour-threshold machinery, unchanged, to hydration free energies. The method treats each
+measurement type as a data \emph{source} and the direct
 free-energy records as the trusted \emph{reference}. It proceeds in two stages.
 
 \paragraph{Stage 1 --- source alignment.} For a non-reference source $s$, let $d_1,\dots,d_n$
@@ -284,6 +294,10 @@ calculated hydration free energies, with input files,'' \emph{J.\ Comput.-Aided 
 \url{https://github.com/MobleyLab/GuthrieSolv}.
 \bibitem{mixle} G.~M.~Boquet, \emph{mixle: automatic statistical inference on composable
 probabilistic models}, \url{https://github.com/gmboquet/mixle}.
+\bibitem{devos1990} M.~Devos, F.~Patte, J.~Rouault, P.~Laffort and L.~J.~Van Gemert,
+\emph{Standardized Human Olfactory Thresholds}, IRL Press at Oxford University Press, Oxford
+(1990). Origin of the ``homogeneous set'' (Homoset) / proportional-similarity standardization
+procedure, developed through the 1970s--1980s for odour detection thresholds.
 \end{thebibliography}
 
 \end{document}
