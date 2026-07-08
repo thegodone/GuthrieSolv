@@ -8,7 +8,8 @@ per molecule, and comparing two curation philosophies against FreeSolv.
 | file | what |
 |---|---|
 | `harmonize_guthrie.py` | physics unit-conversion switchboard (172 units → Ben-Naim ΔG_hyd, kcal/mol), T-corrected, keyed by InChIKey |
-| `calibrate_units_loop.py` | active-learning loop: calibrate long-tail units against anchors, admit via Homoset noise gate, feed back, loop until dry (+22 units, +268 molecules) |
+| `calibrate_units_loop.py` | active-learning loop: calibrate long-tail units against anchors, admit via Homoset noise gate, feed back, loop until dry (single pass: 22 units) |
+| `calibrate_units_iterative.py` | outer fixed-point / co-training wrapper: reconcile → re-anchor → anneal gate strict→loose → repeat until dry (26 units, +290 molecules, FreeSolv MAE 0.399→0.32) |
 | `compare_methods.py` | Homoset PS-gate consensus (L sweep) vs mixle hierarchical partial-pooling (EM, ±robust) |
 | `validate_vs_freesolv.py` | per-route + per-molecule accuracy gate against FreeSolv |
 | `PAPER.tex` | arXiv-style preprint (compile with `pdflatex`/`tectonic`) |

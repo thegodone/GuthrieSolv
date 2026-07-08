@@ -117,22 +117,24 @@
 </header>
 
 <section>
-  <h2>Active-learning loop for the long-tail units</h2>
-  <p class="sub">The hand-coded switchboard handles the frequent units; a retro-feedback loop recovers
+  <h2>Iterative fixed-point loop for the long-tail units</h2>
+  <p class="sub">The hand-coded switchboard handles the frequent units; an active-learning loop recovers
   much of the rest <em>without</em> hand-coding each one — reusing the Homoset noise gate as the
   acceptance test. It admits a unit only when its calibration against already-converted anchors both
-  correlates (|R| ≥ 0.85) and passes <code>RMS/L ≤ η</code>; admitted units become new anchors and the
-  loop repeats until dry.</p>
+  correlates (|R| ≥ R<sub>min</sub>) and passes <code>RMS/L ≤ η</code>. Run as a <strong>fixed-point
+  co-training loop</strong>: reconcile → the consensus becomes cleaner anchors → anneal the gate one
+  notch looser (strict backbone first) → repeat until a pass at the loosest gate is dry.</p>
   <div class="stats" style="grid-template-columns:repeat(4,1fr)">
-    <div class="stat"><b>22</b><span>units auto-calibrated (2 rounds)</span></div>
-    <div class="stat"><b>+268</b><span>new molecules (2,473 → 2,741)</span></div>
-    <div class="stat"><b>+5,244</b><span>observations recovered</span></div>
-    <div class="stat"><b>0.40→0.33</b><span>FreeSolv MAE (held-out) — <em>improves</em></span></div>
+    <div class="stat"><b>26</b><span>units auto-calibrated (6 outer steps)</span></div>
+    <div class="stat"><b>+290</b><span>new molecules (2,473 → 2,763)</span></div>
+    <div class="stat"><b>+5,446</b><span>observations recovered</span></div>
+    <div class="stat"><b>0.40→0.32</b><span>FreeSolv MAE (held-out) — <em>improves</em></span></div>
   </div>
-  <p class="foot">Self-validating: it independently re-derives the air/water Henry sign
-  (<code>log(M/M)</code> slope −0.99 gas/water vs +1.00 water/gas) and cracks opaque strings like
-  <code>MPv/(RTCw)</code> (R 0.99) and <code>logK=y/x at 1 atm</code> (R 0.99). FreeSolv is never an
-  anchor, so the accuracy gain (extra corroborating observations sharpen each median) is a held-out check.</p>
+  <p class="foot">The strict first step does the accuracy lifting (0.399 → 0.321); later annealed
+  steps add coverage at flat ~0.32 MAE, then the loop self-terminates (a coverage/accuracy Pareto).
+  Self-validating: it independently re-derives the air/water Henry sign (<code>log(M/M)</code> slope
+  −0.99 gas/water vs +1.00 water/gas) and cracks opaque strings like <code>MPv/(RTCw)</code> (R 0.99)
+  and <code>logK=y/x at 1 atm</code> (R 0.99). FreeSolv is never an anchor, so the gain is held-out.</p>
 </section>
 
 <section>

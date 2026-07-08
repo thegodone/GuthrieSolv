@@ -42,16 +42,22 @@ rest **without hand-coding each one**, reusing the Homoset noise gate as the acc
 1. **Anchors** = molecules already assigned ΔG_hyd by the physics routes.
 2. For each unconverted `(unit, process)`, fit the best monotone map `ΔG ≈ a·f(value)+b`
    (`f ∈ {log10, −log10, ln, id}`, robust trimmed least-squares) against the anchors it shares.
-3. **Admit** iff it correlates (`|R| ≥ 0.85`) **and** passes the noise gate (`RMS/L ≤ η=0.35`).
+3. **Admit** iff it correlates (`|R| ≥ R_min`) **and** passes the noise gate (`RMS/L ≤ η`).
 4. An admitted unit converts all its rows → new anchors → the next round reaches further.
-5. Loop until a round admits nothing (dry).
 
-**Result:** 22 units admitted in 2 rounds (12 high-confidence Henry/ΔG), **+5,244 obs, +268
-molecules (2,473 → 2,741)**. It is self-validating — it re-derives the air/water Henry sign
-(`log(M/M)` slope −0.99 under gas/water, +1.00 under water/gas) and cracks opaque strings like
-`MPv/(RTCw)` (ln, R 0.99) and `logK=y/x at 1 atm` (R 0.99). And it **improves accuracy**: FreeSolv
-median-MAE **0.399 → 0.328**, R **0.948 → 0.961** (FreeSolv never used as an anchor → held-out).
-Expanded set in `outputs/guthrie_dg_observations_expanded.csv`.
+This runs as an outer **fixed-point / co-training loop** (`calibrate_units_iterative.py`): after
+each admission pass, reconcile all obs to a per-molecule consensus, feed it back as cleaner
+anchors, and **anneal** the gate strict→loose (`(η,R) = (0.25,0.90) → (0.65,0.78)`) so the
+high-confidence backbone is laid first. Continue until a pass at the loosest gate is dry.
+
+**Result (fixed point in 6 outer steps):** **26 units, +5,446 obs, +290 molecules
+(2,473 → 2,763)**. Self-validating — re-derives the air/water Henry sign (`log(M/M)` slope −0.99
+gas/water, +1.00 water/gas), cracks `MPv/(RTCw)` (ln, R 0.99) and `logK=y/x at 1 atm` (R 0.99).
+The **strict first step does the accuracy lifting** (FreeSolv MAE 0.399 → 0.321, R 0.948 → 0.962),
+then later steps add coverage at flat ~0.32 MAE — a coverage/accuracy Pareto with a
+self-terminating stop (FreeSolv never an anchor → held-out). See
+`outputs/unit_calibration_trajectory.png`; single-pass version = `calibrate_units_loop.py` (22
+units); expanded set `outputs/guthrie_dg_observations_iter_expanded.csv`.
 
 ## 2. The two methods
 
