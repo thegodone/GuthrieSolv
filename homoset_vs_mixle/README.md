@@ -7,7 +7,7 @@ per molecule, and comparing two curation philosophies against FreeSolv.
 ## Contents
 | file | what |
 |---|---|
-| `harmonize_guthrie.py` | process+unit switchboard → Ben-Naim ΔG_hyd (kcal/mol), T-corrected, keyed by InChIKey |
+| `harmonize_guthrie.py` | full unit-conversion switchboard (172 units → Ben-Naim ΔG_hyd, kcal/mol), T-corrected, keyed by InChIKey |
 | `compare_methods.py` | Homoset PS-gate consensus (L sweep) vs mixle hierarchical partial-pooling (EM, ±robust) |
 | `validate_vs_freesolv.py` | per-route + per-molecule accuracy gate against FreeSolv |
 | `PAPER.tex` | arXiv-style preprint (compile with `pdflatex`/`tectonic`) |
@@ -35,3 +35,8 @@ Homoset is the better transparent **curator** (its PS-gate noise scale L is the 
 anchor it to real experimental noise and it filters bad sources); mixle is the better
 **reconciler** (lowest RMSE/bias, corrects per-source bias, rescues no-reference molecules).
 Use both. See `REPORT.md` / `PAPER.tex` for details.
+
+## References
+- Homoset PS gate — ported from the user's `merge_bbb_homoset_v2.py` / `build_delta_hvap_v2_homoset.py`.
+- mixle hierarchical partial pooling — [gmboquet/mixle](https://github.com/gmboquet/mixle) (`Normal(Normal(mu0,tau),sigma)`), reproduced in numpy.
+- Ground truth — [MobleyLab/FreeSolv](https://github.com/MobleyLab/FreeSolv).

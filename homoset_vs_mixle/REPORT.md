@@ -49,7 +49,9 @@ sources = measurement processes, with FEOH+DGS as the trusted **reference**.
 - Swept (per your instruction): **L ∈ {adaptive = max((max−min)/2, 0.5) on the diffs,
   fixed physical 0.6}** × **threshold ∈ {2.0, 1.0} kcal/mol}**.
 
-**mixle** (`Normal(Normal(μ0,τ), σ_source)` with per-source bias, EM):
+**mixle** ([gmboquet/mixle](https://github.com/gmboquet/mixle), whose compositional dialect
+writes a random-effects prior as `Normal(Normal(mu0, tau), sigma)`; reproduced here in numpy).
+`Normal(Normal(μ0,τ), σ_source)` with per-source bias, EM:
 `y_ij ~ N(μ_i + b_s, σ_s²)`, `b_reference = 0`, `μ_i ~ N(μ0, τ²)`. Jointly estimates
 per-source bias `b_s`, per-source noise `σ_s`, and per-molecule shrunk posterior μ_i.
 Robust variant uses a Student-t (ν=4) observation model → per-obs weights down-weight

@@ -90,7 +90,11 @@ should a human re-examine? We compare two answers with very different philosophi
 GuthrieSolv stores a raw value (\texttt{value1}), a unit (\texttt{dimension1}), a temperature
 (\texttt{te53p}) and, importantly, a measurement-type code (\texttt{process}) per record. The
 process code is the key that disambiguates the 172 unit strings; Table~\ref{tab:process}
-summarizes the convertible routes. We target the Ben--Naim standard state (transfer of one
+summarizes the convertible routes. The full per-unit conversion switchboard --- pressure units
+to pascals, solubility units to \si{\mol\per\litre} via molecular weight, and the
+pressure/concentration, concentration/pressure, mole-fraction, dimensionless-ratio and
+Ostwald/Bunsen Henry conventions to \Kwa\ --- is implemented in \texttt{harmonize\_guthrie.py}.
+We target the Ben--Naim standard state (transfer of one
 mole per litre of ideal gas to one mole per litre of dilute aqueous solution), which is the
 convention FreeSolv reports, so that converted values are directly comparable:
 \begin{equation}
@@ -165,7 +169,10 @@ spans more than an outlier threshold (swept at $2.0$ and \SI{1.0}{\kcal}), yield
 \texttt{use\_for\_training} decision.
 
 \subsection{mixle: hierarchical partial pooling}
-The mixle-style model is generative. With $y_{ij}$ the $j$-th observation of molecule $i$ from
+We reproduce, in NumPy, the hierarchical partial-pooling construction of the
+\texttt{mixle} probabilistic-modelling library~\cite{mixle}, whose compositional dialect
+expresses a random-effects prior directly as \texttt{Normal(Normal(mu0, tau), sigma)}. The
+model is generative. With $y_{ij}$ the $j$-th observation of molecule $i$ from
 source $s(ij)$,
 \begin{equation}
 y_{ij} \mid \mu_i \sim \mathcal N\!\big(\mu_i + b_{s(ij)},\, \sigma_{s(ij)}^2\big), \qquad
@@ -275,6 +282,8 @@ calculated hydration free energies, with input files,'' \emph{J.\ Comput.-Aided 
 \textbf{28}, 711--720 (2014).
 \bibitem{guthriesolv} MobleyLab, \emph{GuthrieSolv: The Guthrie Hydration Free Energy Database},
 \url{https://github.com/MobleyLab/GuthrieSolv}.
+\bibitem{mixle} G.~M.~Boquet, \emph{mixle: automatic statistical inference on composable
+probabilistic models}, \url{https://github.com/gmboquet/mixle}.
 \end{thebibliography}
 
 \end{document}
