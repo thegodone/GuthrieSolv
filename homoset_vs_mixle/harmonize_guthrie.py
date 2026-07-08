@@ -83,7 +83,7 @@ def _log_wrap(u: str, v: float):
         inner = s[3:].strip(" ()")
         return math.exp(v), inner
     if low.startswith("log10") or low.startswith("log("):
-        inner = re.sub(r"^log10?", "", s, flags=re.I).strip(" ()")
+        inner = re.sub(r"^log(?:10)?", "", s, flags=re.I).strip(" ()")
         return 10.0 ** v, inner
     if low.startswith("log "):
         inner = s[4:].strip(" ()")
@@ -99,7 +99,7 @@ _PA = {
     "pa": 1.0, "kpa": 1e3, "mpa": 1e6, "hpa": 1e2, "mbar": 1e2, "bar": 1e5,
     "atm": 101325.0, "torr": 133.322, "mm hg": 133.322, "mmhg": 133.322,
     "cm hg": 1333.22, "cmhg": 1333.22, "mtorr": 0.133322, "mpa_milli": 1e-3,
-    "kn/(m^2)": 1e3, "kn/m2": 1e3, "n/m2": 1.0,
+    "kn/(m^2)": 1e3, "kn/m2": 1e3, "kn/m^2": 1e3, "n/m2": 1.0,
     "um hg": 0.133322, "\xb5m hg": 0.133322, "micrometers h": 0.133322,
     "mpa ": 1e-3,  # milliPa (ambiguous with megaPa; handled below by exact key)
 }
@@ -130,7 +130,9 @@ def to_pascal(u: str, v: float) -> float:
 # solubility units -> mol/L  (needs MW g/mol)
 def to_molL(u: str, v: float, mw: float) -> float:
     lin, base = _log_wrap(u, v)
-    b = base.lower().strip().replace("(", "").replace(")", "")
+    b = base.lower().strip().replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+    if b in ("mf", "mole fraction", "molefraction", "mf soln", "x"):
+        return lin * WATER_M                       # aqueous mole fraction -> mol/L (dilute)
     if b in ("mol/l", "m", "mol/dm3", "molar"):
         return lin
     if b in ("mmol/l", "mm"):
@@ -192,7 +194,10 @@ def henry_to_kwa(process: str, u: str, v: float, T: float) -> float:
             return math.nan
         if b == "cw/ca":            # explicitly water/air -> already K_wa
             return r
-        return 1.0 / r              # air/water dimensionless Henry -> invert
+        # EMPIRICAL (validated vs FreeSolv): the stored ratio's direction depends on the
+        # process tag. KWG rows store the air/water constant (invert -> K_wa=1/r); KGW rows
+        # store water/gas directly (K_wa=r). The labels are effectively swapped in the source.
+        return r if process == "KGW" else 1.0 / r
 
     # --- Ostwald / Bunsen / Kuenen solubility coefficients (K_wa-like) ---
     if b in ("ostwald",):

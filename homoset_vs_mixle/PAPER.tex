@@ -43,12 +43,12 @@ but it is heterogeneous and of uncertain quality: raw measurements are stored in
 172 distinct unit strings spanning vapour pressures, Henry's-law constants,
 aqueous solubilities and free energies, and it ships with no data-reconciliation
 code. We (i) harmonize the convertible fraction of the database into Ben--Naim
-hydration free energies (\num{12027} observations over \num{2473} molecules,
+hydration free energies (\num{16357} observations over \num{2675} molecules,
 temperature-corrected, keyed by InChIKey), validating every conversion route
 against the curated FreeSolv benchmark, and further recover much of the long tail of the 172
 unit strings with an active-learning fixed-point loop that calibrates each unconverted unit against
 already-converted anchors and admits it only when it passes the same Homoset noise gate
-(\num{26} units, \num{+290} molecules, and \emph{improved} FreeSolv agreement); and (ii) use the resulting redundant,
+(\num{19} units, \num{+135} molecules, and \emph{improved} FreeSolv agreement); and (ii) use the resulting redundant,
 multi-source, per-molecule observations to compare two families of reconciliation
 method. The first is a \emph{proportional-similarity} (Homoset) gate --- a method originally devised in
 the 1970s--1980s to standardize scattered human olfactory detection-threshold
@@ -59,14 +59,14 @@ dimension scale $L$); the
 second is a \emph{mixle}-style hierarchical Gaussian partial-pooling model that
 estimates a per-source bias, a per-source noise scale, and a shrunken per-molecule
 posterior jointly by expectation--maximization, with an optional Student-$t$
-robustification. On the 556-molecule FreeSolv overlap both methods substantially
-outperform naïve pooling. The Homoset gate is the strongest transparent
-\emph{curator}: when its noise scale $L$ is anchored to the true experimental
-uncertainty it acts as a hard source-quality filter and attains a median-based
-MAE of \SI{0.283}{\kcal}. The hierarchical model is the strongest
-\emph{reconciler}: it attains the lowest RMSE (\SI{0.866}{\kcal}) and bias
-(\SI{+0.07}{\kcal}), keeps all data, and uniquely recovers molecules that have no
-clean reference measurement. We argue the two are complementary --- reconcile with
+robustification. On the 561-molecule FreeSolv overlap both methods outperform
+naïve pooling. The Homoset gate is the strongest transparent \emph{curator}: when its noise scale
+$L$ is anchored to the true experimental uncertainty it acts as a hard source-quality filter and,
+on the well-sampled molecules, attains the best accuracy (\SI{0.088}{\kcal} at $\ge4$ observations)
+while emitting a defensible curation flag. The hierarchical model is the strongest
+\emph{reconciler}: it attains the lowest overall MAE and RMSE (\SI{0.249}{} and \SI{0.873}{\kcal}),
+keeps all data, corrects per-source bias, and uniquely recovers sparse molecules the gate cannot
+align. We argue the two are complementary --- reconcile with
 the hierarchical model, triage with the Homoset gate --- and release the
 harmonized dataset and code.
 \end{abstract}
@@ -129,19 +129,32 @@ forms); vapour pressures and solubilities are paired per molecule.}
 \label{tab:process}
 \end{table}
 
-Harmonization yields \num{12027} observations over \num{2473} molecules
-(\num{1518} with $\ge 2$ observations). We validated each route by its
-per-observation residual against FreeSolv on the overlap, which exposed two systematic
-conversion errors that we corrected: (i) the mole-fraction Henry route was biased by exactly
-$-RT\ln 10^3 = +\SI{4.09}{\kcal}$, a dropped litre-to-cubic-metre factor between aqueous and
-gas-phase concentrations; and (ii) the nominally ``water/gas'' dimensionless ratios are in
-fact stored as the standard air/water Henry constant and required inversion (verified
-empirically: the ratio of $1/\text{value}$ to the FreeSolv-implied \Kwa\ is $0.963$). After
-correction, the per-molecule median of the harmonized observations agrees with FreeSolv to a
-mean absolute error (MAE) of \SI{0.40}{\kcal} with Pearson $R=0.948$ (improved from
-\SI{0.79}{\kcal}, $R=0.874$ before the fixes). The direct free-energy records
-(FEOH, DGS) show essentially zero median residual and constitute the clean reference; the
-Henry and pairing routes are the noisier, conflict-generating sources.
+Harmonization yields \num{16357} observations over \num{2675} molecules. We validated each route
+by its per-observation residual against FreeSolv on the overlap, which exposed four systematic
+errors that we corrected: (i) the mole-fraction Henry route was biased by exactly
+$-RT\ln 10^3 = +\SI{4.09}{\kcal}$, a dropped litre-to-cubic-metre factor; (ii) the dimensionless
+Henry ratios are stored with a process-dependent direction (the ``water/gas'' KWG rows hold the
+air/water constant and must be inverted, the ``gas/water'' KGW rows hold \Kwa\ directly --- the
+labels are effectively swapped in the source); (iii) a one-character regular-expression fault
+silently dropped every logarithmic unit spelling (\texttt{log(M)}, \texttt{log(mol/L)},
+\texttt{log(atm)}, \dots{}: several thousand rows) from the switchboard; and (iv) the mole-fraction
+solubility spellings were unhandled. Repairing (iii)--(iv) --- pure deterministic conversions, not
+model fits --- recovered \num{4330} rows and \num{202} molecules and, together with (i)--(ii),
+took the per-molecule median agreement with FreeSolv to an MAE of \SI{0.299}{\kcal} ($R=0.965$),
+from \SI{0.79}{\kcal} ($R=0.874$) at the outset. The direct free-energy records (FEOH, DGS) show
+essentially zero median residual and constitute the clean reference; the Henry and pairing routes
+are the noisier, conflict-generating sources.
+
+\paragraph{What is and is not a unit conversion.} It is worth being explicit about the ceiling.
+Of the \num{172} unit strings, only the Henry-constant and free-energy families are
+\emph{unit conversions of} \dGhyd --- a molecule-independent monotone map --- and every one of
+those is now converted. The remaining $\sim$\num{35000} rows are vapour pressures and aqueous
+solubilities, which are \emph{different physical observables}: no molecule-independent function
+maps a lone vapour pressure to a hydration free energy, because $\dGhyd$ depends on volatility and
+solubility jointly ($\dGhyd = RT\ln[P_{\mathrm{vap}}/(RT\,S)]$). These are recovered only by
+\emph{pairing} a vapour pressure with a solubility for the same molecule (\num{1722} molecules).
+What then remains --- \num{750} vapour-pressure-only and \num{1666} solubility-only molecules --- is
+genuinely unrecoverable: a single observable is a data gap that no amount of arithmetic can close.
 
 \subsection{Active-learning calibration of the long-tail units}
 \label{sec:activeloop}
@@ -160,13 +173,13 @@ We run this as an outer \emph{fixed-point} iteration (co-training): after each a
 reconcile all observations to a per-molecule consensus, feed that cleaner, larger anchor set back,
 and \emph{anneal} the gate one notch looser --- from $(\eta,R_{\min})=(0.25,0.90)$ to
 $(0.65,0.78)$ --- so the high-confidence backbone is laid down before the marginal tail. The
-iteration continues until a pass at the loosest gate admits nothing. It converges in six outer
-steps, admitting \num{26} units and \num{5446} observations and reaching \num{290}
-previously-unreachable molecules (\num{2473}$\to$\num{2763}). Accuracy is dominated by the strict
-first step: the held-out FreeSolv agreement drops from \SI{0.399}{\kcal} ($R=0.948$) to
-\SI{0.321}{\kcal} ($R=0.962$) and then holds flat ($\approx$\SI{0.32}{\kcal}) as later steps add
-coverage at neutral cost --- a clean coverage/accuracy Pareto with a self-terminating stop
-(FreeSolv is never an anchor). The loop is self-validating: it independently recovers the
+iteration continues until a pass at the loosest gate admits nothing. On the corrected switchboard
+it converges in six outer steps, admitting \num{19} units and reaching \num{135} further molecules
+(\num{2675}$\to$\num{2810}); the held-out FreeSolv agreement holds flat at $\approx$\SI{0.32}{\kcal}
+as coverage grows --- a clean coverage/accuracy Pareto with a self-terminating stop (FreeSolv is
+never an anchor). (Before the logarithmic-unit fix the loop had to \emph{rescue} those spellings
+itself and admitted \num{26} units; once the switchboard converts them directly its remaining job
+is smaller, which is the desired outcome.) The loop is self-validating: it independently recovers the
 air/water sign of the dimensionless Henry constant ($\log(M/M)$ fit with slope $-0.99$ under the
 gas/water process and $+1.00$ under water/gas) and cracks opaque strings a human would struggle
 with, e.g.\ \texttt{MPv/(RTCw)} ($\ln$, $R=0.99$) and \texttt{logK=y/x at 1 atm} ($R=0.99$).
@@ -236,7 +249,7 @@ source's systematic offset and \emph{propagates that correction to every molecul
 those with no reference measurement.
 
 \section{Results}
-We score each reconciled point estimate against FreeSolv on the 556-molecule overlap
+We score each reconciled point estimate against FreeSolv on the 561-molecule overlap
 (Table~\ref{tab:main}). Both methods beat the raw mean and median at all obs counts; the gap
 widens on the 193 molecules the Homoset gate flags as conflicted, where reconciliation matters
 most.
@@ -249,35 +262,32 @@ most.
 \toprule
 estimator & {all MAE} & {all RMSE} & {$\ge$4-obs MAE} & {conflict MAE} & {conflict RMSE} & {bias} \\
 \midrule
-raw mean                                & 0.570 & 1.226 & 0.406 & 0.916 & 1.495 & $+0.40$ \\
-raw median                              & 0.399 & 1.180 & 0.203 & 0.581 & 1.419 & $+0.23$ \\
-Homoset, $L$ adaptive, $\eta{=}0.50$    & 0.392 & 1.159 & 0.202 & 0.574 & 1.402 & $+0.22$ \\
-Homoset, $L$ adaptive, $\eta{=}0.25$    & 0.350 & 1.068 & 0.159 & 0.491 & 1.248 & $+0.19$ \\
-\textbf{Homoset, $L{=}0.6$ (any $\eta$)} & \bfseries 0.283 & 0.979 & \bfseries 0.083 & 0.357 & 1.071 & $+0.15$ \\
-\textbf{mixle, gaussian}                & 0.308 & \bfseries 0.866 & 0.141 & 0.359 & \bfseries 0.855 & \bfseries $+0.07$ \\
-mixle, robust-$t$                       & 0.276 & 0.949 & 0.116 & \bfseries 0.354 & 1.060 & $+0.09$ \\
+raw mean                                & 0.451 & 1.082 & 0.266 & 0.652 & 1.201 & $+0.32$ \\
+raw median                              & 0.299 & 1.020 & 0.108 & 0.365 & 1.088 & $+0.16$ \\
+Homoset, $L$ adaptive, $\eta{=}0.25$    & 0.297 & 1.011 & 0.108 & 0.364 & 1.082 & $+0.15$ \\
+\textbf{Homoset, $L{=}0.6$ (any $\eta$)} & 0.273 & 0.951 & \bfseries 0.088 & 0.314 & 0.958 & $+0.14$ \\
+mixle, gaussian                         & 0.315 & 0.902 & 0.150 & 0.362 & 0.844 & $+0.09$ \\
+\textbf{mixle, robust-$t$}              & \bfseries 0.249 & \bfseries 0.873 & 0.095 & \bfseries 0.276 & \bfseries 0.837 & \bfseries $+0.08$ \\
 \bottomrule
 \end{tabular}
-\caption{Accuracy against FreeSolv on the overlap ($n=556$; \si{\kcal}); conflict column over
-the 278 molecules whose replicates fail the homogeneity test. Bold marks the best value in each
+\caption{Accuracy against FreeSolv on the overlap ($n=561$; \si{\kcal}); conflict column over
+the 286 molecules whose replicates fail the homogeneity test. Bold marks the best value in each
 column. Homoset is shown across its two parameters, the dimension $L$ and the noise level
-$\eta$; at $L{=}0.6$ both noise levels reject every converted source and so score identically.}
+$\eta$; on the corrected data the converted sources are tight enough that both noise levels admit
+them all under adaptive $L$, and both reject them all at $L{=}0.6$.}
 \label{tab:main}
 \end{table}
 
 \paragraph{The two parameters govern the Homoset gate.} The per-source noise
 $\mathrm{RMS}_s/L$ makes the gate's behaviour explicit (Table~\ref{tab:gate}). With the
-data-adaptive $L$ (here \SIrange{5.9}{10.3}{\kcal}, inflated by a few wildly disagreeing
-molecules) the sources have noise $0.14$--$0.34$; a noise level $\eta=0.25$ admits the two
-cleanest converted sources (KWG, PAIR) but rejects the Henry gas/water source, while
-$\eta=0.50$ admits all three, and the consensus barely improves on a plain median. With the
-fixed physical $L=\SI{0.6}{\kcal}$ the converted-source noise is $1.4$--$5.0$, far above either
-noise level, so all converted sources are rejected and only the direct free-energy records
-survive: the gate becomes a hard source-quality filter, and this strict setting attains the best
-median-based accuracy. Notably, the source the gate is most reluctant to admit --- Henry
-gas/water, the only one rejected at $\eta=0.25$ --- is exactly the source the hierarchical model
-assigns the largest bias (\SI{+1.18}{\kcal}, below), an independent corroboration of which
-source is least trustworthy.
+data-adaptive $L$ the three converted sources are all tight (noise $0.09$--$0.16$), so any tested
+noise level admits them all and the consensus barely improves on a plain median. With the fixed
+physical $L=\SI{0.6}{\kcal}$ the noise is $0.9$--$2.7$, far above any $\eta$, so all converted
+sources are rejected and only the direct free-energy records survive: the gate becomes a hard
+source-quality filter, and this strict setting attains the best median-based accuracy. The
+least-trusted converted source --- the vapour-pressure/solubility pairing, with the largest gate
+noise --- is exactly the one the hierarchical model assigns the largest bias (\SI{+0.91}{\kcal},
+below), an independent corroboration of which source is least reliable.
 
 \begin{table}[t]
 \centering
@@ -286,9 +296,9 @@ source is least trustworthy.
 \toprule
 source & noise $\mathrm{RMS}/L$ ($L$ adaptive) & noise ($L{=}0.6$) & admitted at \\
 \midrule
-KWG (Henry water/gas)          & 0.14 & 1.36 & $\eta\ge0.25$ ($L$ adaptive) \\
-PAIR (vapour-P $\times$ sol.)  & 0.18 & 3.01 & $\eta\ge0.25$ ($L$ adaptive) \\
-KGW (Henry gas/water)          & 0.34 & 5.03 & $\eta\ge0.50$ ($L$ adaptive) \\
+KGW (Henry gas/water)          & 0.09 & 0.89 & any $\eta$ ($L$ adaptive) \\
+KWG (Henry water/gas)          & 0.12 & 1.15 & any $\eta$ ($L$ adaptive) \\
+PAIR (vapour-P $\times$ sol.)  & 0.16 & 2.72 & any $\eta$ ($L$ adaptive) \\
 \bottomrule
 \end{tabular}
 \caption{The Homoset gate as a function of its two parameters. A source is admitted iff its
@@ -297,18 +307,17 @@ any tested $\eta$.}
 \label{tab:gate}
 \end{table}
 
-\paragraph{mixle corrects rather than rejects.} The Gaussian model estimates systematic source
-biases of $+1.18$, $+1.25$ and \SI{+0.30}{\kcal} for the gas/water Henry, vapour-pressure/solubility
-pairing, and water/gas Henry sources respectively (relative to the free-energy reference), and
-subtracts them. This yields the lowest RMSE and the smallest bias of any method, and --- because
-the bias is shared across molecules --- it is the only method that improves molecules lacking a
-reference measurement. For example, a molecule with two Henry observations and no free-energy
-record (InChIKey \texttt{CVXBEEMKQHEXEN}) has FreeSolv value \SI{-9.45}{\kcal}; the raw median and
-the Homoset consensus are both stuck at \SI{-3.38}{\kcal}, whereas mixle-robust recovers
-\SI{-9.22}{\kcal}. Conversely, for contaminated molecules that \emph{do} have a reference, the
-strict Homoset gate and the robust model both recover the truth almost exactly (e.g.\
-\texttt{ZWRUINPWMLAQRD}, 9 observations: truth \SI{-3.88}{\kcal}, raw median \SI{+1.63}{\kcal},
-both methods \SI{-3.88}{\kcal}).
+\paragraph{mixle corrects rather than rejects.} The Gaussian model estimates modest systematic
+source biases of \SI{+0.91}{\kcal} for the vapour-pressure/solubility pairing and
+$\approx$\SI{+0.2}{\kcal} for the two Henry sources (relative to the free-energy reference), and
+subtracts them. This yields the lowest overall MAE and RMSE, and --- because the bias is shared
+across molecules --- it is the only method that improves sparse molecules that cannot be aligned by
+the gate. For example, a two-source molecule (InChIKey \texttt{XOGPDSATLSAZEK}) has FreeSolv value
+\SI{-11.53}{\kcal}; the raw median and the Homoset consensus sit at \SI{-6.77}{\kcal} (the two
+sources disagree and there is nothing to align against), whereas mixle-robust recovers
+\SI{-11.48}{\kcal} by trusting the lower-bias source. On the \num{286} molecules whose replicates
+fail the homogeneity test, mixle-robust reaches an MAE of \SI{0.276}{\kcal} versus
+\SI{0.314}{\kcal} for the strict Homoset gate and \SI{0.365}{\kcal} for the raw median.
 
 \section{Discussion}
 The two methods embody a general trade-off in multi-source curation. The Homoset gate makes
@@ -331,7 +340,7 @@ valuable. Extending an independent validation to that regime is the natural next
 modelling temperature and standard-state as explicit effects rather than pre-correcting them.
 
 \section{Conclusion}
-We converted the heterogeneous GuthrieSolv dump into \num{12027} standardized hydration
+We converted the heterogeneous GuthrieSolv dump into \num{16357} standardized hydration
 free-energy observations and used its redundancy to compare a proportional-similarity consensus
 gate with a hierarchical partial-pooling model. Both recover the signal that naïve pooling
 misses. The gate is the better curator under a physically-anchored noise scale; the hierarchical

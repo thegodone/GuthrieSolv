@@ -20,20 +20,30 @@ row's measurement type, which makes conversion tractable:
 | DGT/DGTX/DGB/DGV, PKA, KA, LAQACTCO | transfer/vaporisation/pKa | excl. | not hydration |
 
 All converted to Ben-Naim ΔG*_hyd (gas 1 M → aq 1 M, same standard state as
-FreeSolv), temperature-corrected. **Result: 12,027 observations / 2,473 molecules
-(1,518 with ≥2 obs).**
+FreeSolv), temperature-corrected. **Result: 16,357 observations / 2,675 molecules.**
 
-Two conversion bugs were caught by validating each route's per-observation residual
+Four conversion bugs were caught by validating each route's per-observation residual
 against FreeSolv:
-- **mole-fraction Henry** was off by exactly −RT·ln(1000) = +4.09 kcal/mol
-  (dropped an L→m³ factor);
-- **dimensionless M/M ratios**, despite the KWG "water/gas" label, are stored as the
-  standard *air/water* Henry constant → needed inversion (verified empirically:
-  (1/value)/K_wa_true = 0.963).
+- **mole-fraction Henry** off by exactly −RT·ln(1000) = +4.09 kcal/mol (dropped L→m³ factor);
+- **dimensionless Henry ratios** have a *process-dependent* direction: KWG rows store the
+  air/water constant (invert → K_wa=1/value), KGW rows store water/gas directly (K_wa=value) —
+  the labels are effectively swapped in the source (verified vs FreeSolv);
+- **log-unit parser bug**: a one-char regex (`^log10?` needs "log**1**") silently dropped every
+  `log(M)`, `log(mol/L)`, `log(atm)`, `log(mmHg)`… spelling — thousands of rows;
+- **mole-fraction solubility** spellings (`mf`, `[mf]`) were unhandled.
 
-After fixes, per-molecule raw-median MAE vs FreeSolv fell **0.79 → 0.40 kcal/mol,
-R 0.874 → 0.948**. Direct free-energy rows have ~0 median residual (they are the
-clean reference); Henry/pairing routes are noisier (the conflict source).
+Fixing the log-parser + KGW direction (pure math, no learning) recovered **+4,330 rows, +202
+molecules** and took per-molecule raw-median MAE vs FreeSolv to **0.30 kcal/mol, R 0.965** (from
+0.79 / 0.874 at the outset). Direct free-energy rows have ~0 median residual (the clean reference).
+
+### Why not all 172 units? (the answer to "it's just math")
+Only the **Henry-constant and free-energy** families are *unit conversions of* ΔG_hyd (a
+molecule-independent map) — and every one is now converted. The remaining ~35,000 rows are
+**vapour pressure (20k) + aqueous solubility (15k)**, which are *different physical observables*:
+no molecule-independent math maps a lone vapour pressure to ΔG_hyd (it needs volatility AND
+solubility jointly). Those convert only by **pairing** VP×solubility per molecule (1,722 molecules).
+What remains — **750 VP-only + 1,666 solubility-only molecules** — is a single-observable **data
+gap** no arithmetic can close. So the loop going "dry" is physically correct, not a limitation.
 
 ## 1b. Active-learning loop for the long-tail units (`calibrate_units_loop.py`)
 The hand-coded switchboard covers the frequent units; a retro-feedback loop recovers much of the
@@ -50,14 +60,13 @@ each admission pass, reconcile all obs to a per-molecule consensus, feed it back
 anchors, and **anneal** the gate strict→loose (`(η,R) = (0.25,0.90) → (0.65,0.78)`) so the
 high-confidence backbone is laid first. Continue until a pass at the loosest gate is dry.
 
-**Result (fixed point in 6 outer steps):** **26 units, +5,446 obs, +290 molecules
-(2,473 → 2,763)**. Self-validating — re-derives the air/water Henry sign (`log(M/M)` slope −0.99
-gas/water, +1.00 water/gas), cracks `MPv/(RTCw)` (ln, R 0.99) and `logK=y/x at 1 atm` (R 0.99).
-The **strict first step does the accuracy lifting** (FreeSolv MAE 0.399 → 0.321, R 0.948 → 0.962),
-then later steps add coverage at flat ~0.32 MAE — a coverage/accuracy Pareto with a
-self-terminating stop (FreeSolv never an anchor → held-out). See
-`outputs/unit_calibration_trajectory.png`; single-pass version = `calibrate_units_loop.py` (22
-units); expanded set `outputs/guthrie_dg_observations_iter_expanded.csv`.
+**Result (fixed point in 6 outer steps, on the bug-fixed base):** **19 units, +135 molecules
+(2,675 → 2,810)**; FreeSolv MAE holds flat ~0.32 as coverage grows — a coverage/accuracy Pareto
+with a self-terminating stop (FreeSolv never an anchor → held-out). Self-validating — cracks
+`MPv/(RTCw)` (ln, R 0.99) and `logK=y/x at 1 atm` (R 0.99). (Before the log-parser fix the loop had
+to *rescue* the log spellings and admitted 26 units; now the switchboard converts them directly, so
+the loop's remaining job is smaller — the desired outcome.) See
+`outputs/unit_calibration_trajectory.png`; expanded set `guthrie_dg_observations_iter_expanded.csv`.
 
 ## 2. The two methods
 
@@ -88,48 +97,48 @@ per-source bias `b_s`, per-source noise `σ_s`, and per-molecule shrunk posterio
 Robust variant uses a Student-t (ν=4) observation model → per-obs weights down-weight
 outliers.
 
-## 3. Results (556-molecule FreeSolv overlap; kcal/mol)
+## 3. Results (561-molecule FreeSolv overlap; kcal/mol; bug-fixed base)
 
 | estimator | all MAE | all RMSE | ≥4-obs MAE | **conflict MAE** | **conflict RMSE** | bias |
 |---|---|---|---|---|---|---|
-| raw mean | 0.570 | 1.226 | 0.406 | 0.916 | 1.495 | +0.40 |
-| raw median | 0.399 | 1.180 | 0.203 | 0.581 | 1.419 | +0.23 |
-| Homoset, L adaptive, η=0.50 | 0.392 | 1.159 | 0.202 | 0.574 | 1.402 | +0.22 |
-| Homoset, L adaptive, η=0.25 | 0.350 | 1.068 | 0.159 | 0.491 | 1.248 | +0.19 |
-| **Homoset, L=0.6 (any η)** | **0.283** | 0.979 | **0.083** | 0.357 | 1.071 | +0.15 |
-| **mixle gauss** | 0.308 | **0.866** | 0.141 | 0.359 | **0.855** | **+0.07** |
-| mixle robust | 0.276 | 0.949 | 0.116 | **0.354** | 1.060 | +0.09 |
+| raw mean | 0.451 | 1.082 | 0.266 | 0.652 | 1.201 | +0.32 |
+| raw median | 0.299 | 1.020 | 0.108 | 0.365 | 1.088 | +0.16 |
+| Homoset, L adaptive, η=0.25 | 0.297 | 1.011 | 0.108 | 0.364 | 1.082 | +0.15 |
+| **Homoset, L=0.6 (any η)** | 0.273 | 0.951 | **0.088** | 0.314 | 0.958 | +0.14 |
+| mixle gauss | 0.315 | 0.902 | 0.150 | 0.362 | 0.844 | +0.09 |
+| **mixle robust** | **0.249** | **0.873** | 0.095 | **0.276** | **0.837** | **+0.08** |
 
-(Conflict column = 278 molecules whose replicates fail the homogeneity test. At L=0.6 both
-noise levels reject every converted source, so they score identically.)
+(Conflict column = 286 molecules whose replicates fail the homogeneity test.) **Note:** fixing the
+conversion bugs removed much of the apparent "conflict" — a lot of it was *my bad unit conversions*,
+not genuine literature disagreement. On the clean data the raw median is already good (0.299), so
+the methods' edge shrinks; **mixle-robust is now best overall** (0.249), Homoset (L=0.6) still wins
+the well-sampled ≥4-obs subset (0.088).
 
 ## 4. The two parameters — noise level η and dimension L (the crux)
-Homoset's behaviour is set by (η, L), read directly off the per-source noise = RMS/L:
+Homoset's behaviour is set by (η, L), read off the per-source noise = RMS/L (bug-fixed base):
 
 | source | noise (L adaptive) | noise (L=0.6) | admitted |
 |---|---|---|---|
-| KWG (Henry water/gas) | 0.14 | 1.36 | η≥0.25 (adaptive L) |
-| PAIR (vapour-P × sol.) | 0.18 | 3.01 | η≥0.25 (adaptive L) |
-| KGW (Henry gas/water) | 0.34 | 5.03 | η≥0.50 (adaptive L) |
+| KGW (Henry gas/water) | 0.09 | 0.89 | any η (adaptive L) |
+| KWG (Henry water/gas) | 0.12 | 1.15 | any η (adaptive L) |
+| PAIR (vapour-P × sol.) | 0.16 | 2.72 | any η (adaptive L) |
 
-- **Adaptive L** (½ of the *data's own* diff-range, 5.9–10.3 kcal/mol) → source noise 0.14–0.34;
-  η=0.25 admits the two cleanest sources (KWG, PAIR) but rejects KGW, η=0.50 admits all → MAE 0.35–0.39.
-- **Fixed physical L = 0.6** → source noise 1.4–5.0 ≫ any η → **all converted sources REJECTED**,
-  only direct free-energy survives → the gate is a hard source-quality filter → MAE 0.28.
+- **Adaptive L** → converted sources are all tight (noise 0.09–0.16) → any η admits all → consensus
+  barely beats a plain median.
+- **Fixed physical L = 0.6** → source noise 0.9–2.7 ≫ any η → **all converted sources REJECTED**,
+  only direct free-energy survives → hard source-quality filter → best median accuracy.
 
-So with a physically-anchored L the Homoset gate is the best *curator* — it throws away exactly
-the sources FreeSolv-validation shows are noisy. Tellingly, the source it is most reluctant to
-admit (KGW, the only one rejected at η=0.25) is the very source mixle assigns the largest bias
-(+1.18) — the two methods independently agree on which source is worst.
+Fixing the KGW-direction bug also *dissolved* the earlier "both methods distrust KGW" story — that
+was an artifact. On clean data **PAIR** is the least-trusted converted source (highest gate noise
+0.16 **and** the largest mixle bias +0.91) — the two methods still independently agree on the worst
+source, just a different one.
 
 ## 5. Where mixle differs
 mixle keeps every source but **estimates and corrects each one's bias**
-(gauss: KGW +1.18, PAIR +1.25, KWG +0.30 kcal/mol vs the free-energy reference) and
-shrinks sparse molecules toward μ0 = −4.95. It wins RMSE everywhere and has the
-lowest bias, and it is the only method that helps molecules that have **no reference
-source at all** — e.g. `CVXBEEMKQHEXEN` (2 obs, no free-energy): truth −9.45,
-raw/Homoset stuck at −3.38, **mixle_robust −9.22**, because the globally-learned
-source bias transfers to molecules the Homoset alignment can't reach.
+(gauss: PAIR +0.91, KWG +0.23, KGW +0.21 kcal/mol vs the free-energy reference) and shrinks sparse
+molecules. It wins overall MAE/RMSE and is the only method that helps sparse molecules the gate
+can't align — e.g. `XOGPDSATLSAZEK` (2 sources that disagree): truth −11.53, raw median/Homoset
+stuck at −6.77, **mixle_robust −11.48**, by trusting the lower-bias source.
 
 Concrete recoveries (truth | raw-median | Homoset-Lfix | mixle-gauss | mixle-robust):
 - `SHZIWNPUGXLXDT` (5 obs): −2.23 | +3.43 | −2.23 | −2.10 | −2.23

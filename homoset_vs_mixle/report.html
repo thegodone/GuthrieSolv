@@ -107,13 +107,15 @@
   Ben-Naim ΔG<sub>hyd</sub> (FreeSolv's standard state), temperature-corrected, keyed by InChIKey.</p>
 
   <div class="stats">
-    <div class="stat"><b>12,027</b><span>ΔG<sub>hyd</sub> observations converted</span></div>
-    <div class="stat"><b>2,473</b><span>molecules (1,518 with ≥2 obs)</span></div>
-    <div class="stat"><b>556</b><span>overlap with FreeSolv (truth)</span></div>
-    <div class="stat"><b>0.95</b><span>R of harmonized median vs FreeSolv</span></div>
+    <div class="stat"><b>16,357</b><span>ΔG<sub>hyd</sub> observations converted</span></div>
+    <div class="stat"><b>2,675</b><span>molecules harmonized (physics route)</span></div>
+    <div class="stat"><b>561</b><span>overlap with FreeSolv (truth)</span></div>
+    <div class="stat"><b>0.965</b><span>R of harmonized median vs FreeSolv</span></div>
   </div>
-  <p class="foot">Harmonization validated per-route against FreeSolv; two conversion bugs caught &amp; fixed
-  (mole-fraction Henry off by RT·ln1000; M/M ratios stored air/water) → raw-median MAE 0.79 → 0.40 kcal/mol.</p>
+  <p class="foot">Validated per-route against FreeSolv; <b>four</b> conversion bugs caught &amp; fixed
+  (mole-fraction Henry off by RT·ln1000; process-dependent Henry-ratio direction; a one-char regex that
+  silently dropped every <code>log(…)</code> unit spelling; mole-fraction solubility) → raw-median MAE
+  <b>0.79 → 0.30</b> kcal/mol, R 0.965.</p>
 </header>
 
 <section>
@@ -125,23 +127,45 @@
   co-training loop</strong>: reconcile → the consensus becomes cleaner anchors → anneal the gate one
   notch looser (strict backbone first) → repeat until a pass at the loosest gate is dry.</p>
   <div class="stats" style="grid-template-columns:repeat(4,1fr)">
-    <div class="stat"><b>26</b><span>units auto-calibrated (6 outer steps)</span></div>
-    <div class="stat"><b>+290</b><span>new molecules (2,473 → 2,763)</span></div>
-    <div class="stat"><b>+5,446</b><span>observations recovered</span></div>
-    <div class="stat"><b>0.40→0.32</b><span>FreeSolv MAE (held-out) — <em>improves</em></span></div>
+    <div class="stat"><b>19</b><span>units auto-calibrated (6 outer steps)</span></div>
+    <div class="stat"><b>+135</b><span>new molecules (2,675 → 2,810)</span></div>
+    <div class="stat"><b>~0.32</b><span>FreeSolv MAE held flat as coverage grows</span></div>
+    <div class="stat"><b>self-stop</b><span>converges when loosest gate is dry</span></div>
   </div>
-  <p class="foot">The strict first step does the accuracy lifting (0.399 → 0.321); later annealed
-  steps add coverage at flat ~0.32 MAE, then the loop self-terminates (a coverage/accuracy Pareto).
-  Self-validating: it independently re-derives the air/water Henry sign (<code>log(M/M)</code> slope
-  −0.99 gas/water vs +1.00 water/gas) and cracks opaque strings like <code>MPv/(RTCw)</code> (R 0.99)
-  and <code>logK=y/x at 1 atm</code> (R 0.99). FreeSolv is never an anchor, so the gain is held-out.</p>
+  <p class="foot">Coverage grows at flat ~0.32 held-out MAE, then the loop self-terminates (a
+  coverage/accuracy Pareto). Cracks opaque strings like <code>MPv/(RTCw)</code> (R 0.99) and
+  <code>logK=y/x at 1 atm</code> (R 0.99). FreeSolv is never an anchor. (Before the log-parser fix
+  the loop had to <em>rescue</em> the log spellings itself and admitted 26 units; now the switchboard
+  converts them directly, so the loop's job is smaller — the desired outcome.)</p>
+</section>
+
+<section>
+  <h2>Why not all 172 units? Physics, not a limitation</h2>
+  <p class="sub">A fair question — unit conversion is "just math", so why stop at 26 units? Because
+  only some of the 172 strings are actually <em>units of</em> ΔG<sub>hyd</sub>.</p>
+  <div class="grid2">
+    <div class="card mx">
+      <h3>Convertible = Henry + free energy</h3>
+      <p>The Henry-constant and free-energy families <em>are</em> molecule-independent conversions of
+      ΔG<sub>hyd</sub> — and every one is now converted (a log-parser bug had been hiding thousands of
+      <code>log(…)</code> rows; fixing it added +202 molecules and <em>improved</em> accuracy).</p>
+    </div>
+    <div class="card hs">
+      <h3>Not convertible = VP &amp; solubility</h3>
+      <p>The remaining ~35,000 rows are vapour pressure and solubility — <em>different observables</em>.
+      No math maps a lone vapour pressure to ΔG<sub>hyd</sub> (it needs volatility <em>and</em> solubility).
+      These convert only by <strong>pairing</strong> (1,722 molecules); <strong>750 VP-only + 1,666
+      solubility-only</strong> molecules stay lost — a data gap, not a math gap.</p>
+    </div>
+  </div>
 </section>
 
 <section>
   <h2>Accuracy against FreeSolv</h2>
-  <p class="sub">kcal/mol over the 556-molecule overlap. <span class="m-hs">Homoset</span> =
+  <p class="sub">kcal/mol over the 561-molecule overlap. <span class="m-hs">Homoset</span> =
   your PS-gate consensus; <span class="m-mx">mixle</span> = hierarchical partial pooling.
-  Green = best in column. Both crush the naïve mean/median.</p>
+  Green = best in column. On the bug-fixed data the raw median is already good, so the overall gap is
+  small — <span class="m-mx">mixle-robust</span> is best overall, Homoset (L=0.6) wins the ≥4-obs subset.</p>
   <div class="tbl">
   <table>
     <thead><tr>
@@ -149,26 +173,28 @@
       <th>conflict MAE</th><th>conflict RMSE</th><th>bias</th>
     </tr></thead>
     <tbody>
-      <tr><td>raw mean</td><td>0.570</td><td>1.226</td><td>0.406</td><td>0.916</td><td>1.495</td><td>+0.40</td></tr>
-      <tr><td>raw median</td><td>0.399</td><td>1.180</td><td>0.203</td><td>0.581</td><td>1.419</td><td>+0.23</td></tr>
+      <tr><td>raw mean</td><td>0.451</td><td>1.082</td><td>0.266</td><td>0.652</td><td>1.201</td><td>+0.32</td></tr>
+      <tr><td>raw median</td><td>0.299</td><td>1.020</td><td>0.108</td><td>0.365</td><td>1.088</td><td>+0.16</td></tr>
       <tr><td><span class="m-hs">Homoset</span> · L adaptive, η=0.25<span class="tag hs">HS</span></td>
-        <td>0.350</td><td>1.068</td><td>0.159</td><td>0.491</td><td>1.248</td><td>+0.19</td></tr>
+        <td>0.297</td><td>1.011</td><td>0.108</td><td>0.364</td><td>1.082</td><td>+0.15</td></tr>
       <tr><td><span class="m-hs">Homoset</span> · L=0.6, any η<span class="tag hs">HS</span></td>
-        <td class="win">0.283</td><td>0.979</td><td class="win">0.083</td><td>0.357</td><td>1.071</td><td>+0.15</td></tr>
+        <td>0.273</td><td>0.951</td><td class="win">0.088</td><td>0.314</td><td>0.958</td><td>+0.14</td></tr>
       <tr><td><span class="m-mx">mixle</span> · gaussian<span class="tag mx">MX</span></td>
-        <td>0.308</td><td class="win">0.866</td><td>0.141</td><td>0.359</td><td class="win">0.855</td><td class="win">+0.07</td></tr>
+        <td>0.315</td><td>0.902</td><td>0.150</td><td>0.362</td><td>0.844</td><td>+0.09</td></tr>
       <tr><td><span class="m-mx">mixle</span> · robust-t<span class="tag mx">MX</span></td>
-        <td>0.276</td><td>0.949</td><td>0.116</td><td class="win">0.354</td><td>1.060</td><td>+0.09</td></tr>
+        <td class="win">0.249</td><td class="win">0.873</td><td>0.095</td><td class="win">0.276</td><td class="win">0.837</td><td class="win">+0.08</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="foot">Conflict columns cover the 278 molecules whose replicates fail the homogeneity test.
-  At L=0.6 both noise levels reject every converted source, so they score identically.
-  mixle-robust edges MAE; Homoset (L=0.6) ties it as a curator; mixle-gauss owns RMSE &amp; bias.</p>
+  <p class="foot">Conflict columns cover the 286 molecules whose replicates fail the homogeneity test.
+  <b>mixle-robust is now best overall</b> (all-MAE 0.249, RMSE 0.873, conflict-MAE 0.276); Homoset
+  (L=0.6) wins the well-sampled ≥4-obs subset (0.088). Note: fixing the conversion bugs removed much
+  of the apparent "conflict" — a lot of it was bad unit conversions, not real literature disagreement,
+  so the raw median is now already good and the methods' edge is smaller (but real on genuine conflicts).</p>
 </section>
 
 <section>
-  <h2>The hard cases: 278 conflicted molecules</h2>
+  <h2>The hard cases: 286 conflicted molecules</h2>
   <p class="sub">Molecules whose replicates fail the homogeneity test (RMS beyond the noise level ×
   0.6 kcal/mol) — where reconciliation actually matters. Mean absolute error vs FreeSolv (shorter = better).</p>
   <div class="bars" id="bars"></div>
@@ -186,31 +212,32 @@
   <table>
     <thead><tr><th>source</th><th>noise (L adaptive ≈ 5.9–10.3)</th><th>noise (L = 0.6)</th><th>admitted</th></tr></thead>
     <tbody>
-      <tr><td>KWG · Henry water/gas</td><td>0.14</td><td>1.36</td><td>η ≥ 0.25 (L adaptive)</td></tr>
-      <tr><td>PAIR · vapour-P × sol.</td><td>0.18</td><td>3.01</td><td>η ≥ 0.25 (L adaptive)</td></tr>
-      <tr><td>KGW · Henry gas/water</td><td>0.34</td><td>5.03</td><td>η ≥ 0.50 (L adaptive)</td></tr>
+      <tr><td>KGW · Henry gas/water</td><td>0.09</td><td>0.89</td><td>any η (L adaptive)</td></tr>
+      <tr><td>KWG · Henry water/gas</td><td>0.12</td><td>1.15</td><td>any η (L adaptive)</td></tr>
+      <tr><td>PAIR · vapour-P × sol.</td><td>0.16</td><td>2.72</td><td>any η (L adaptive)</td></tr>
     </tbody>
   </table>
   </div>
   <div class="grid2">
     <div class="card hs">
-      <h3>L adaptive <span class="pill acc">η tunes how many pass</span></h3>
-      <p>L = ½·(range of the diffs) ≈ 5.9–10.3 kcal/mol, so source noise is 0.14–0.34.
-      At η=0.25 the two cleanest sources (KWG, PAIR) pass but KGW is rejected; at η=0.50 all three pass.
-      More admitted → noisier consensus.</p>
-      <div class="kv">η=0.25 → MAE 0.350 · η=0.50 → MAE 0.392</div>
+      <h3>L adaptive <span class="pill acc">all sources tight → admit</span></h3>
+      <p>On the bug-fixed data the three converted sources are all tight (noise 0.09–0.16), so any
+      noise level admits them all — η no longer discriminates here. The consensus barely beats a plain
+      median.</p>
+      <div class="kv">any η → MAE ≈ 0.297</div>
     </div>
     <div class="card hs">
       <h3>L = 0.6 <span class="pill rej">converted sources REJECT</span></h3>
-      <p>Anchor L to FreeSolv's ~0.6 kcal/mol experimental noise. Now source noise is 1.4–5.0 ≫ any η →
+      <p>Anchor L to FreeSolv's ~0.6 kcal/mol experimental noise. Now source noise is 0.9–2.7 ≫ any η →
       every converted source fails; only the direct free-energy measurements survive. The gate becomes
-      a hard source-quality filter — and wins, at either noise level.</p>
-      <div class="kv">any η → MAE 0.283 (free-energy only)</div>
+      a hard source-quality filter — and wins on the well-sampled molecules.</p>
+      <div class="kv">any η → MAE 0.273 (free-energy only)</div>
     </div>
   </div>
-  <p class="foot">Tellingly, the source Homoset is most reluctant to admit — KGW, the only one rejected
-  at η=0.25 — is exactly the one mixle assigns the largest bias (+1.18 kcal/mol). The two methods
-  independently agree on which source is worst.</p>
+  <p class="foot">Fixing the KGW-direction bug dissolved the earlier "both methods distrust KGW" story
+  (that was the artifact). On clean data <b>PAIR</b> is the least-trusted converted source — highest
+  gate noise (0.16) <em>and</em> the largest mixle bias (+0.91) — so the two methods still independently
+  agree on the worst source, just a different one.</p>
 </section>
 
 <section>
@@ -222,9 +249,9 @@
     <thead><tr><th>source</th><th>meaning</th><th>Homoset (L=0.6)</th><th>mixle bias b<sub>s</sub></th><th>mixle σ<sub>s</sub></th></tr></thead>
     <tbody>
       <tr><td>FEOH + DGS</td><td>direct free energy</td><td>reference</td><td>0.00 (anchor)</td><td>~0.4</td></tr>
-      <tr><td>KWG</td><td>Henry water/gas</td><td class="m-hs">rejected</td><td class="m-mx">+0.30</td><td>1.0</td></tr>
-      <tr><td>KGW</td><td>Henry gas/water</td><td class="m-hs">rejected</td><td class="m-mx">+1.18</td><td>1.3</td></tr>
-      <tr><td>PAIR</td><td>vapour-P × solubility</td><td class="m-hs">rejected</td><td class="m-mx">+1.25</td><td>2.1</td></tr>
+      <tr><td>KGW</td><td>Henry gas/water</td><td class="m-hs">rejected</td><td class="m-mx">+0.21</td><td>1.0</td></tr>
+      <tr><td>KWG</td><td>Henry water/gas</td><td class="m-hs">rejected</td><td class="m-mx">+0.23</td><td>1.0</td></tr>
+      <tr><td>PAIR</td><td>vapour-P × solubility</td><td class="m-hs">rejected</td><td class="m-mx">+0.91</td><td>2.1</td></tr>
     </tbody>
   </table>
   </div>
@@ -234,21 +261,23 @@
 
 <section>
   <h2>Concrete recoveries</h2>
-  <p class="sub">Contaminated molecules where the raw median is badly wrong (kcal/mol). Both advanced
-  methods pull it back toward truth; mixle uniquely rescues the no-reference case.</p>
+  <p class="sub">Genuine two-source disagreements that survive the bug fix (kcal/mol). With only two
+  sources that disagree, Homoset has nothing to align against and sits at the raw median; mixle-robust
+  corrects via the globally-learned per-source bias.</p>
   <div class="tbl">
   <table>
     <thead><tr><th>molecule (InChIKey)</th><th>obs</th><th>FreeSolv</th><th>raw median</th>
       <th>Homoset L=0.6</th><th>mixle gauss</th><th>mixle robust</th></tr></thead>
     <tbody>
-      <tr><td>SHZIWNPUGXLXDT</td><td>5</td><td>−2.23</td><td class="m-hs" style="color:var(--bad)">+3.43</td><td class="win">−2.23</td><td>−2.10</td><td class="win">−2.23</td></tr>
-      <tr><td>ZWRUINPWMLAQRD</td><td>9</td><td>−3.88</td><td style="color:var(--bad)">+1.63</td><td class="win">−3.88</td><td>−3.75</td><td class="win">−3.88</td></tr>
-      <tr><td>CVXBEEMKQHEXEN <span class="tag hs">no reference src</span></td><td>2</td><td>−9.45</td><td style="color:var(--bad)">−3.38</td><td style="color:var(--bad)">−3.38</td><td>−7.94</td><td class="win">−9.22</td></tr>
+      <tr><td>XOGPDSATLSAZEK <span class="tag hs">2 sources disagree</span></td><td>2</td><td>−11.53</td><td style="color:var(--bad)">−6.77</td><td style="color:var(--bad)">−6.77</td><td>−11.4</td><td class="win">−11.48</td></tr>
+      <tr><td>FBMQNRKSAWNXBT</td><td>2</td><td>−11.85</td><td style="color:var(--bad)">−6.51</td><td style="color:var(--bad)">−6.51</td><td>−9.8</td><td class="win">−10.50</td></tr>
+      <tr><td>USIUVYZYUHIAEV</td><td>2</td><td>−2.87</td><td style="color:var(--bad)">+0.08</td><td style="color:var(--bad)">+0.08</td><td>−2.4</td><td class="win">−2.65</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="foot">Row 3: with only 2 Henry obs and no free-energy anchor, Homoset must fall back to the
-  raw median (−3.38); mixle still corrects via the globally-learned source bias → −9.22, near truth.</p>
+  <p class="foot">Each has two sources ~5 kcal/mol apart; the raw median splits the difference and
+  Homoset can't align (nothing to align to), while mixle-robust trusts the lower-bias source and lands
+  near the FreeSolv truth. These are real literature disagreements, not conversion artifacts.</p>
 </section>
 
 <section>
@@ -283,14 +312,14 @@
 
 <script>
   const data=[
-    {n:"raw median",v:0.581,c:"#8a9698"},
-    {n:"Homoset · L adaptive η=0.50",v:0.574,c:"#a8620a"},
-    {n:"Homoset · L adaptive η=0.25",v:0.491,c:"#c98b3a"},
-    {n:"Homoset · L=0.6",v:0.357,c:"#d9a86a"},
-    {n:"mixle · gaussian",v:0.359,c:"#0d6b74"},
-    {n:"mixle · robust-t",v:0.354,c:"#3a9a92"},
+    {n:"raw mean",v:0.652,c:"#b0b8b8"},
+    {n:"raw median",v:0.365,c:"#8a9698"},
+    {n:"Homoset · L adaptive",v:0.364,c:"#c98b3a"},
+    {n:"Homoset · L=0.6",v:0.314,c:"#a8620a"},
+    {n:"mixle · gaussian",v:0.362,c:"#3a9a92"},
+    {n:"mixle · robust-t",v:0.276,c:"#0d6b74"},
   ];
-  const max=0.62, host=document.getElementById("bars");
+  const max=0.70, host=document.getElementById("bars");
   data.forEach(d=>{
     const row=document.createElement("div"); row.className="bar";
     row.innerHTML=`<div class="lab">${d.n}</div>

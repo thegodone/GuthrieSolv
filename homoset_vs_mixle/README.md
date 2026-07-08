@@ -8,8 +8,9 @@ per molecule, and comparing two curation philosophies against FreeSolv.
 | file | what |
 |---|---|
 | `harmonize_guthrie.py` | physics unit-conversion switchboard (172 units → Ben-Naim ΔG_hyd, kcal/mol), T-corrected, keyed by InChIKey |
-| `calibrate_units_loop.py` | active-learning loop: calibrate long-tail units against anchors, admit via Homoset noise gate, feed back, loop until dry (single pass: 22 units) |
-| `calibrate_units_iterative.py` | outer fixed-point / co-training wrapper: reconcile → re-anchor → anneal gate strict→loose → repeat until dry (26 units, +290 molecules, FreeSolv MAE 0.399→0.32) |
+| `calibrate_units_loop.py` | active-learning loop: calibrate long-tail units against anchors, admit via Homoset noise gate, feed back, loop until dry (single pass) |
+| `calibrate_units_iterative.py` | outer fixed-point / co-training wrapper: reconcile → re-anchor → anneal gate strict→loose → repeat until dry (19 units, +135 molecules on the bug-fixed base) |
+| `pair_vp_solubility.py` | pairs VP×solubility per molecule (the only route for those observables) + reports what stays truly unconvertible (single-observable molecules) |
 | `compare_methods.py` | Homoset PS-gate consensus (L sweep) vs mixle hierarchical partial-pooling (EM, ±robust) |
 | `validate_vs_freesolv.py` | per-route + per-molecule accuracy gate against FreeSolv |
 | `PAPER.tex` | arXiv-style preprint (compile with `pdflatex`/`tectonic`) |
@@ -25,13 +26,13 @@ python validate_vs_freesolv.py     # sanity gate vs FreeSolv
 ```
 Requires `rdkit`, `numpy`, `pandas`, `scipy`, and a local FreeSolv `database.json`.
 
-## Headline (556-molecule FreeSolv overlap, kcal/mol)
+## Headline (561-molecule FreeSolv overlap, kcal/mol; bug-fixed base)
 | method | all MAE | all RMSE | conflict MAE | bias |
 |---|---|---|---|---|
-| raw median | 0.399 | 1.180 | 0.581 | +0.23 |
-| Homoset (L=0.6, any η) | **0.283** | 0.979 | 0.357 | +0.15 |
-| mixle (gaussian) | 0.308 | **0.866** | 0.359 | **+0.07** |
-| mixle (robust-t) | 0.276 | 0.949 | **0.354** | +0.09 |
+| raw median | 0.299 | 1.020 | 0.365 | +0.16 |
+| Homoset (L=0.6, any η) | 0.273 | 0.951 | 0.314 | +0.14 |
+| mixle (gaussian) | 0.315 | 0.902 | 0.362 | +0.09 |
+| **mixle (robust-t)** | **0.249** | **0.873** | **0.276** | **+0.08** |
 
 The **Homoset gate has two parameters** — the noise level η (tolerated RMS/L) and the dimension
 value L; a source joins the homogeneous set iff `RMS/L ≤ η`. Homoset is the better transparent
