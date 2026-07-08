@@ -117,6 +117,25 @@
 </header>
 
 <section>
+  <h2>Active-learning loop for the long-tail units</h2>
+  <p class="sub">The hand-coded switchboard handles the frequent units; a retro-feedback loop recovers
+  much of the rest <em>without</em> hand-coding each one — reusing the Homoset noise gate as the
+  acceptance test. It admits a unit only when its calibration against already-converted anchors both
+  correlates (|R| ≥ 0.85) and passes <code>RMS/L ≤ η</code>; admitted units become new anchors and the
+  loop repeats until dry.</p>
+  <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat"><b>22</b><span>units auto-calibrated (2 rounds)</span></div>
+    <div class="stat"><b>+268</b><span>new molecules (2,473 → 2,741)</span></div>
+    <div class="stat"><b>+5,244</b><span>observations recovered</span></div>
+    <div class="stat"><b>0.40→0.33</b><span>FreeSolv MAE (held-out) — <em>improves</em></span></div>
+  </div>
+  <p class="foot">Self-validating: it independently re-derives the air/water Henry sign
+  (<code>log(M/M)</code> slope −0.99 gas/water vs +1.00 water/gas) and cracks opaque strings like
+  <code>MPv/(RTCw)</code> (R 0.99) and <code>logK=y/x at 1 atm</code> (R 0.99). FreeSolv is never an
+  anchor, so the accuracy gain (extra corroborating observations sharpen each median) is a held-out check.</p>
+</section>
+
+<section>
   <h2>Accuracy against FreeSolv</h2>
   <p class="sub">kcal/mol over the 556-molecule overlap. <span class="m-hs">Homoset</span> =
   your PS-gate consensus; <span class="m-mx">mixle</span> = hierarchical partial pooling.

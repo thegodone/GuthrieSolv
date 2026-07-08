@@ -35,6 +35,24 @@ After fixes, per-molecule raw-median MAE vs FreeSolv fell **0.79 → 0.40 kcal/m
 R 0.874 → 0.948**. Direct free-energy rows have ~0 median residual (they are the
 clean reference); Henry/pairing routes are noisier (the conflict source).
 
+## 1b. Active-learning loop for the long-tail units (`calibrate_units_loop.py`)
+The hand-coded switchboard covers the frequent units; a retro-feedback loop recovers much of the
+rest **without hand-coding each one**, reusing the Homoset noise gate as the acceptance test:
+
+1. **Anchors** = molecules already assigned ΔG_hyd by the physics routes.
+2. For each unconverted `(unit, process)`, fit the best monotone map `ΔG ≈ a·f(value)+b`
+   (`f ∈ {log10, −log10, ln, id}`, robust trimmed least-squares) against the anchors it shares.
+3. **Admit** iff it correlates (`|R| ≥ 0.85`) **and** passes the noise gate (`RMS/L ≤ η=0.35`).
+4. An admitted unit converts all its rows → new anchors → the next round reaches further.
+5. Loop until a round admits nothing (dry).
+
+**Result:** 22 units admitted in 2 rounds (12 high-confidence Henry/ΔG), **+5,244 obs, +268
+molecules (2,473 → 2,741)**. It is self-validating — it re-derives the air/water Henry sign
+(`log(M/M)` slope −0.99 under gas/water, +1.00 under water/gas) and cracks opaque strings like
+`MPv/(RTCw)` (ln, R 0.99) and `logK=y/x at 1 atm` (R 0.99). And it **improves accuracy**: FreeSolv
+median-MAE **0.399 → 0.328**, R **0.948 → 0.961** (FreeSolv never used as an anchor → held-out).
+Expanded set in `outputs/guthrie_dg_observations_expanded.csv`.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in

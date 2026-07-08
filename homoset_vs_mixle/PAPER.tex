@@ -45,7 +45,10 @@ aqueous solubilities and free energies, and it ships with no data-reconciliation
 code. We (i) harmonize the convertible fraction of the database into Ben--Naim
 hydration free energies (\num{12027} observations over \num{2473} molecules,
 temperature-corrected, keyed by InChIKey), validating every conversion route
-against the curated FreeSolv benchmark; and (ii) use the resulting redundant,
+against the curated FreeSolv benchmark, and further recover much of the long tail of the 172
+unit strings with an active-learning loop that calibrates each unconverted unit against
+already-converted anchors and admits it only when it passes the same Homoset noise gate
+(\num{22} units, \num{+268} molecules, and \emph{improved} FreeSolv agreement); and (ii) use the resulting redundant,
 multi-source, per-molecule observations to compare two families of reconciliation
 method. The first is a \emph{proportional-similarity} (Homoset) gate --- a method originally devised in
 the 1970s--1980s to standardize scattered human olfactory detection-threshold
@@ -139,6 +142,31 @@ mean absolute error (MAE) of \SI{0.40}{\kcal} with Pearson $R=0.948$ (improved f
 \SI{0.79}{\kcal}, $R=0.874$ before the fixes). The direct free-energy records
 (FEOH, DGS) show essentially zero median residual and constitute the clean reference; the
 Henry and pairing routes are the noisier, conflict-generating sources.
+
+\subsection{Active-learning calibration of the long-tail units}
+\label{sec:activeloop}
+The hand-coded switchboard covers the high-frequency units but leaves a long tail of the 172
+strings unconverted. Rather than hand-code each remaining spelling, we recover many of them with
+a retro-feedback loop that reuses the Homoset homogeneity gate (Eq.~\eqref{eq:ps}) as its
+acceptance criterion. Let the \emph{anchors} be the molecules already assigned a $\dGhyd$ by the
+physics routes. For each unconverted (unit, process) group we fit the best monotone map
+$\dGhyd \approx a\,f(\text{value}) + b$ with $f\in\{\log_{10},\,-\log_{10},\,\ln,\,\text{id}\}$
+(a robust, trimmed least-squares fit) against the anchor values of the molecules it shares, and
+\emph{admit} the calibration iff it both correlates ($|R|\ge0.85$) and passes the noise gate
+($\mathrm{RMS}/L\le\eta$, $\eta=0.35$). An admitted unit converts all of its rows, whose
+per-molecule medians become new anchors, so the next round can calibrate units that only overlap
+the newly-reached molecules; the loop stops when a round admits nothing.
+
+The loop admits \num{22} units in two rounds (\num{12} at high confidence: Henry/free-energy
+processes with $|R|\ge0.95$ and $\mathrm{RMS}/L\le0.15$), adding \num{5244} observations and
+\num{268} previously-unreachable molecules (\num{2473}$\to$\num{2741}). It is self-validating: it
+independently recovers the air/water sign of the dimensionless Henry constant --- $\log(M/M)$ is
+fit with slope $-0.99$ under the gas/water process and $+1.00$ under the water/gas process --- and
+it cracks opaque strings a human would struggle with, e.g.\ \texttt{MPv/(RTCw)} ($\ln$, $R=0.99$)
+and \texttt{logK=y/x at 1 atm} ($R=0.99$). Crucially the expansion \emph{improves} accuracy: the
+extra corroborating observations sharpen the per-molecule medians, taking the FreeSolv agreement
+from \SI{0.399}{\kcal} ($R=0.948$) to \SI{0.328}{\kcal} ($R=0.961$) even as coverage grows.
+FreeSolv is never used as an anchor, so this is a held-out check.
 
 \section{Methods}
 
@@ -310,9 +338,9 @@ community curation of the database.
 
 \section*{Data and code availability}
 Harmonized observations, per-molecule estimates from all methods, full metrics, and the three
-scripts (\texttt{harmonize\_guthrie.py}, \texttt{compare\_methods.py},
-\texttt{validate\_vs\_freesolv.py}) are in \texttt{homoset\_vs\_mixle/} on the \texttt{homoset}
-branch of the repository.
+scripts (\texttt{harmonize\_guthrie.py}, \texttt{calibrate\_units\_loop.py},
+\texttt{compare\_methods.py}, \texttt{validate\_vs\_freesolv.py}) are in
+\texttt{homoset\_vs\_mixle/} on the \texttt{homoset} branch of the repository.
 
 \begin{thebibliography}{9}
 \bibitem{freesolv} D.~L.~Mobley and J.~P.~Guthrie, ``FreeSolv: a database of experimental and
