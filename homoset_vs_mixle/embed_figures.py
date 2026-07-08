@@ -8,6 +8,11 @@ OUT = HERE / "outputs"
 HTML = HERE / "report.html"
 
 FIGS = [
+    ("unit_coverage.png",
+     "Disposition of all 53,895 GuthrieSolv measurements: 38,539 (71%) convert to ΔG_hyd "
+     "(free-energy · Henry · VP×solubility pairing); only 186 rows are unparsed. The rest are "
+     "single-observable VP/solubility (physically un-pairable) or non-hydration. Right: the rule "
+     "engine converts 65 (unit,process) combos vs the switchboard's 57."),
     ("unit_calibration_trajectory.png",
      "Active-learning calibration trajectory — FreeSolv MAE (held-out) stays flat while coverage "
      "grows across annealed outer iterations, then the loop self-terminates."),
