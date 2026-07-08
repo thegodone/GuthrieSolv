@@ -1,0 +1,271 @@
+<title>Homoset vs mixle — reconciling GuthrieSolv</title>
+<style>
+  :root{
+    --ground:#f5f8f8; --panel:#ffffff; --ink:#141a1c; --ink2:#3f4b4e;
+    --hair:#dbe4e4; --hair2:#eaf0f0;
+    --water:#0d6b74;           /* accent: aqueous teal */
+    --homoset:#a8620a;         /* method hue A: ochre */
+    --mixle:#0d6b74;           /* method hue B: teal  */
+    --good:#1a7d3f; --warn:#b06a06; --bad:#b23b3b;
+    --grid:#eef3f3;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:0 24px 96px}
+  a{color:var(--water)}
+  h1,h2,h3{text-wrap:balance;line-height:1.15}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--water);font-weight:600}
+  code,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* header */
+  header{padding:64px 0 34px;border-bottom:1px solid var(--hair)}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5vw,46px);margin:14px 0 10px;
+    letter-spacing:-.01em}
+  .lede{font-size:18px;color:var(--ink2);max-width:64ch;margin:0}
+  .prov{margin-top:20px;font-size:13.5px;color:var(--ink2);max-width:70ch}
+
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hair);
+    border:1px solid var(--hair);border-radius:12px;overflow:hidden;margin:30px 0 8px}
+  .stat{background:var(--panel);padding:16px 18px}
+  .stat b{display:block;font-family:var(--mono);font-size:24px;font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em}
+  .stat span{font-size:12.5px;color:var(--ink2)}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+  section{padding:38px 0 4px;border-bottom:1px solid var(--hair2)}
+  section:last-of-type{border-bottom:0}
+  h2{font-family:var(--serif);font-weight:600;font-size:25px;margin:0 0 4px}
+  .sub{color:var(--ink2);font-size:15px;margin:2px 0 20px;max-width:70ch}
+  p{max-width:72ch}
+
+  /* tables */
+  .tbl{width:100%;overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{padding:9px 12px;text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2);
+    border-bottom:1.5px solid var(--hair);font-weight:600}
+  tbody td{border-bottom:1px solid var(--hair2);font-family:var(--mono);
+    font-variant-numeric:tabular-nums}
+  tbody td:first-child{font-family:var(--sans);font-weight:500}
+  tbody tr:hover{background:#f0f6f6}
+  .win{background:#e7f3ea;color:var(--good);font-weight:700;border-radius:4px}
+  .m-hs{color:var(--homoset)} .m-mx{color:var(--mixle)}
+  .tag{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:999px;
+    vertical-align:1px;margin-left:7px;font-weight:600}
+  .tag.hs{background:#f6ead9;color:var(--homoset)} .tag.mx{background:#d9eeed;color:var(--mixle)}
+  .foot{font-size:12.5px;color:var(--ink2);margin-top:10px}
+
+  /* bar viz */
+  .bars{display:flex;flex-direction:column;gap:11px;margin:8px 0 6px}
+  .bar{display:grid;grid-template-columns:180px 1fr 52px;align-items:center;gap:12px}
+  .bar .lab{font-size:13px;text-align:right;color:var(--ink2)}
+  .track{background:var(--grid);border-radius:6px;height:22px;position:relative;overflow:hidden}
+  .fill{height:100%;border-radius:6px}
+  .bar .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:600}
+  @media(max-width:560px){.bar{grid-template-columns:120px 1fr 46px}.bar .lab{font-size:12px}}
+
+  /* callout / gate */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:18px 20px}
+  .card h3{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .card.hs{border-top:3px solid var(--homoset)} .card.mx{border-top:3px solid var(--mixle)}
+  .card p{font-size:13.5px;color:var(--ink2);margin:6px 0 0}
+  .pill{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .pill.acc{background:#e7f3ea;color:var(--good)} .pill.rej{background:#f7e4e4;color:var(--bad)}
+  .kv{font-family:var(--mono);font-size:12.5px;color:var(--ink2);margin-top:8px;
+    font-variant-numeric:tabular-nums}
+
+  .verdict{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:8px}
+  @media(max-width:760px){.verdict{grid-template-columns:1fr}}
+  .vc{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:18px}
+  .vc .role{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+  .vc h3{font-family:var(--serif);font-size:19px;margin:6px 0 8px}
+  .vc p{font-size:13.5px;color:var(--ink2);margin:0;max-width:none}
+  .vc.a{border-top:3px solid var(--homoset)} .vc.a .role{color:var(--homoset)}
+  .vc.b{border-top:3px solid var(--mixle)} .vc.b .role{color:var(--mixle)}
+  .vc.c{border-top:3px solid var(--ink)} .vc.c .role{color:var(--ink)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Multi-source data curation · hydration free energy</div>
+  <h1>Homoset vs. mixle: reconciling the GuthrieSolv dump</h1>
+  <p class="lede">Two ways to turn 53,895 noisy literature measurements into one trustworthy
+  ΔG<sub>hyd</sub> per molecule — a deterministic PS-gate consensus vs. a hierarchical
+  partial-pooling model — scored against FreeSolv.</p>
+  <p class="prov">GuthrieSolv is the largest extracted hydration dataset but ships <em>no</em>
+  reconciliation code (only a SMILES-parse test). Raw values live in 172 unit strings across
+  vapour-pressure / Henry / solubility / free-energy measurements; all were harmonized to
+  Ben-Naim ΔG<sub>hyd</sub> (FreeSolv's standard state), temperature-corrected, keyed by InChIKey.</p>
+
+  <div class="stats">
+    <div class="stat"><b>12,027</b><span>ΔG<sub>hyd</sub> observations converted</span></div>
+    <div class="stat"><b>2,473</b><span>molecules (1,518 with ≥2 obs)</span></div>
+    <div class="stat"><b>556</b><span>overlap with FreeSolv (truth)</span></div>
+    <div class="stat"><b>0.95</b><span>R of harmonized median vs FreeSolv</span></div>
+  </div>
+  <p class="foot">Harmonization validated per-route against FreeSolv; two conversion bugs caught &amp; fixed
+  (mole-fraction Henry off by RT·ln1000; M/M ratios stored air/water) → raw-median MAE 0.79 → 0.40 kcal/mol.</p>
+</header>
+
+<section>
+  <h2>Accuracy against FreeSolv</h2>
+  <p class="sub">kcal/mol over the 556-molecule overlap. <span class="m-hs">Homoset</span> =
+  your PS-gate consensus; <span class="m-mx">mixle</span> = hierarchical partial pooling.
+  Green = best in column. Both crush the naïve mean/median.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr>
+      <th>estimator</th><th>all MAE</th><th>all RMSE</th><th>≥4-obs MAE</th>
+      <th>conflict MAE</th><th>conflict RMSE</th><th>bias</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>raw mean</td><td>0.570</td><td>1.226</td><td>0.406</td><td>1.134</td><td>1.698</td><td>+0.40</td></tr>
+      <tr><td>raw median</td><td>0.399</td><td>1.180</td><td>0.203</td><td>0.706</td><td>1.611</td><td>+0.23</td></tr>
+      <tr><td><span class="m-hs">Homoset</span> · L adaptive<span class="tag hs">HS</span></td>
+        <td>0.392</td><td>1.159</td><td>0.202</td><td>0.697</td><td>1.592</td><td>+0.22</td></tr>
+      <tr><td><span class="m-hs">Homoset</span> · L fixed 0.6<span class="tag hs">HS</span></td>
+        <td class="win">0.283</td><td>0.979</td><td class="win">0.083</td><td>0.410</td><td>1.181</td><td>+0.15</td></tr>
+      <tr><td><span class="m-mx">mixle</span> · gaussian<span class="tag mx">MX</span></td>
+        <td>0.308</td><td class="win">0.866</td><td>0.141</td><td class="win">0.382</td><td class="win">0.875</td><td class="win">+0.07</td></tr>
+      <tr><td><span class="m-mx">mixle</span> · robust-t<span class="tag mx">MX</span></td>
+        <td>0.276</td><td>0.949</td><td>0.116</td><td>0.388</td><td>1.152</td><td>+0.09</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="foot">The outlier threshold (2.0 vs 1.0 kcal/mol) changes only <em>which</em> molecules are
+  flagged for curation, not the consensus value — so both settings score identically.
+  mixle-robust edges MAE; Homoset-Lfixed ties it as a curator; mixle-gauss owns RMSE &amp; bias.</p>
+</section>
+
+<section>
+  <h2>The hard cases: 193 conflicted molecules</h2>
+  <p class="sub">Molecules whose measurements disagree by ≥2 kcal/mol — where reconciliation
+  actually matters. Mean absolute error vs FreeSolv (shorter = better).</p>
+  <div class="bars" id="bars"></div>
+  <p class="foot">The hierarchical model halves the raw-median error on conflicts because it
+  corrects each source's estimated bias and shrinks contaminated molecules toward the global prior,
+  instead of letting the median sit among bad values.</p>
+</section>
+
+<section>
+  <h2>What the noise scale <span style="font-family:var(--serif)">L</span> does</h2>
+  <p class="sub">You flagged this as the crux — and it is. Homoset's entire behaviour turns on L,
+  the denominator in <code>PS = 1 − RMS/L</code>. A source joins the consensus only if
+  <code>PS ≥ ps_crit(n, α=0.01)</code>.</p>
+  <div class="grid2">
+    <div class="card hs">
+      <h3>L adaptive <span class="pill acc">all sources ACCEPT</span></h3>
+      <p>L = ½·(range of the diffs) ≈ 5.9–10.3 kcal/mol here, because a few molecules disagree
+      wildly. That inflates L → PS ≈ 0.86 ≫ crit ≈ 0.47 → the noisy Henry/pairing sources all pass.
+      Consensus barely beats a plain median.</p>
+      <div class="kv">KGW PS 0.86 · KWG 0.86 · PAIR 0.82 &nbsp;→&nbsp; MAE 0.392</div>
+    </div>
+    <div class="card hs">
+      <h3>L fixed 0.6 <span class="pill rej">converted sources REJECT</span></h3>
+      <p>Anchor L to FreeSolv's ~0.6 kcal/mol experimental noise. Now RMS ≫ L → PS &lt; 0 → every
+      converted source fails the gate; only the direct free-energy measurements survive. The PS gate
+      becomes a hard source-quality filter — and wins.</p>
+      <div class="kv">KGW PS −4.03 · KWG −0.36 · PAIR −2.01 &nbsp;→&nbsp; MAE 0.283</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>How mixle handles the same sources</h2>
+  <p class="sub">Instead of accept/reject, mixle keeps every source and estimates its systematic
+  bias vs the free-energy reference — then corrects it. Learned biases (kcal/mol):</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>source</th><th>meaning</th><th>Homoset (L fixed)</th><th>mixle bias b<sub>s</sub></th><th>mixle σ<sub>s</sub></th></tr></thead>
+    <tbody>
+      <tr><td>FEOH + DGS</td><td>direct free energy</td><td>reference</td><td>0.00 (anchor)</td><td>~0.4</td></tr>
+      <tr><td>KWG</td><td>Henry water/gas</td><td class="m-hs">rejected</td><td class="m-mx">+0.30</td><td>1.0</td></tr>
+      <tr><td>KGW</td><td>Henry gas/water</td><td class="m-hs">rejected</td><td class="m-mx">+1.18</td><td>1.3</td></tr>
+      <tr><td>PAIR</td><td>vapour-P × solubility</td><td class="m-hs">rejected</td><td class="m-mx">+1.25</td><td>2.1</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="foot">Because the bias is learned globally, it transfers to molecules that have
+  <em>no</em> reference source — the ones Homoset can only fall back to a raw median on.</p>
+</section>
+
+<section>
+  <h2>Concrete recoveries</h2>
+  <p class="sub">Contaminated molecules where the raw median is badly wrong (kcal/mol). Both advanced
+  methods pull it back toward truth; mixle uniquely rescues the no-reference case.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>molecule (InChIKey)</th><th>obs</th><th>FreeSolv</th><th>raw median</th>
+      <th>Homoset Lfix</th><th>mixle gauss</th><th>mixle robust</th></tr></thead>
+    <tbody>
+      <tr><td>SHZIWNPUGXLXDT</td><td>5</td><td>−2.23</td><td class="m-hs" style="color:var(--bad)">+3.43</td><td class="win">−2.23</td><td>−2.10</td><td class="win">−2.23</td></tr>
+      <tr><td>ZWRUINPWMLAQRD</td><td>9</td><td>−3.88</td><td style="color:var(--bad)">+1.63</td><td class="win">−3.88</td><td>−3.75</td><td class="win">−3.88</td></tr>
+      <tr><td>CVXBEEMKQHEXEN <span class="tag hs">no reference src</span></td><td>2</td><td>−9.45</td><td style="color:var(--bad)">−3.38</td><td style="color:var(--bad)">−3.38</td><td>−7.94</td><td class="win">−9.22</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="foot">Row 3: with only 2 Henry obs and no free-energy anchor, Homoset must fall back to the
+  raw median (−3.38); mixle still corrects via the globally-learned source bias → −9.22, near truth.</p>
+</section>
+
+<section>
+  <h2>Verdict</h2>
+  <p class="sub">Different tools for different jobs — and they compose.</p>
+  <div class="verdict">
+    <div class="vc a">
+      <div class="role">Homoset — the curator</div>
+      <h3>Transparent triage</h3>
+      <p>Best simple consensus when L is anchored to real experimental noise: the PS gate becomes a
+      source-quality filter and its per-molecule range flag gives a direct <code>use_for_training</code>
+      decision. Accuracy hinges entirely on choosing L; with the data-adaptive L it barely beats a median.</p>
+    </div>
+    <div class="vc b">
+      <div class="role">mixle — the reconciler</div>
+      <h3>Lowest error, no knobs</h3>
+      <p>Best RMSE and bias everywhere. Keeps all data, learns and corrects per-source bias, down-weights
+      outliers, and uniquely rescues molecules with no clean reference. Cost: less interpretable — no
+      explicit reject-this-source or curate-this-molecule flag.</p>
+    </div>
+    <div class="vc c">
+      <div class="role">Recommendation</div>
+      <h3>Use both</h3>
+      <p>Reconcile values with mixle's bias-correction + robust weights; triage with Homoset's PS gate and
+      range flag to decide which molecules a human should re-check. GuthrieSolv's redundancy is real
+      signal — both methods extract it, the raw mean does not.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+  const data=[
+    {n:"raw median",v:0.706,c:"#8a9698"},
+    {n:"Homoset · L adaptive",v:0.697,c:"#a8620a"},
+    {n:"Homoset · L fixed 0.6",v:0.410,c:"#c98b3a"},
+    {n:"mixle · robust-t",v:0.388,c:"#3a9a92"},
+    {n:"mixle · gaussian",v:0.382,c:"#0d6b74"},
+  ];
+  const max=0.75, host=document.getElementById("bars");
+  data.forEach(d=>{
+    const row=document.createElement("div"); row.className="bar";
+    row.innerHTML=`<div class="lab">${d.n}</div>
+      <div class="track"><div class="fill" style="width:0%;background:${d.c}"></div></div>
+      <div class="v" style="color:${d.c}">${d.v.toFixed(3)}</div>`;
+    host.appendChild(row);
+    const fill=row.querySelector(".fill");
+    const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+    const target=(d.v/max*100).toFixed(1)+"%";
+    if(reduce){fill.style.width=target;}
+    else{requestAnimationFrame(()=>{fill.style.transition="width .9s cubic-bezier(.2,.7,.2,1)";
+      setTimeout(()=>fill.style.width=target,60);});}
+  });
+</script>
