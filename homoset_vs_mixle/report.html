@@ -128,28 +128,28 @@
       <th>conflict MAE</th><th>conflict RMSE</th><th>bias</th>
     </tr></thead>
     <tbody>
-      <tr><td>raw mean</td><td>0.570</td><td>1.226</td><td>0.406</td><td>1.134</td><td>1.698</td><td>+0.40</td></tr>
-      <tr><td>raw median</td><td>0.399</td><td>1.180</td><td>0.203</td><td>0.706</td><td>1.611</td><td>+0.23</td></tr>
-      <tr><td><span class="m-hs">Homoset</span> · L adaptive<span class="tag hs">HS</span></td>
-        <td>0.392</td><td>1.159</td><td>0.202</td><td>0.697</td><td>1.592</td><td>+0.22</td></tr>
-      <tr><td><span class="m-hs">Homoset</span> · L fixed 0.6<span class="tag hs">HS</span></td>
-        <td class="win">0.283</td><td>0.979</td><td class="win">0.083</td><td>0.410</td><td>1.181</td><td>+0.15</td></tr>
+      <tr><td>raw mean</td><td>0.570</td><td>1.226</td><td>0.406</td><td>0.916</td><td>1.495</td><td>+0.40</td></tr>
+      <tr><td>raw median</td><td>0.399</td><td>1.180</td><td>0.203</td><td>0.581</td><td>1.419</td><td>+0.23</td></tr>
+      <tr><td><span class="m-hs">Homoset</span> · L adaptive, η=0.25<span class="tag hs">HS</span></td>
+        <td>0.350</td><td>1.068</td><td>0.159</td><td>0.491</td><td>1.248</td><td>+0.19</td></tr>
+      <tr><td><span class="m-hs">Homoset</span> · L=0.6, any η<span class="tag hs">HS</span></td>
+        <td class="win">0.283</td><td>0.979</td><td class="win">0.083</td><td>0.357</td><td>1.071</td><td>+0.15</td></tr>
       <tr><td><span class="m-mx">mixle</span> · gaussian<span class="tag mx">MX</span></td>
-        <td>0.308</td><td class="win">0.866</td><td>0.141</td><td class="win">0.382</td><td class="win">0.875</td><td class="win">+0.07</td></tr>
+        <td>0.308</td><td class="win">0.866</td><td>0.141</td><td>0.359</td><td class="win">0.855</td><td class="win">+0.07</td></tr>
       <tr><td><span class="m-mx">mixle</span> · robust-t<span class="tag mx">MX</span></td>
-        <td>0.276</td><td>0.949</td><td>0.116</td><td>0.388</td><td>1.152</td><td>+0.09</td></tr>
+        <td>0.276</td><td>0.949</td><td>0.116</td><td class="win">0.354</td><td>1.060</td><td>+0.09</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="foot">The outlier threshold (2.0 vs 1.0 kcal/mol) changes only <em>which</em> molecules are
-  flagged for curation, not the consensus value — so both settings score identically.
-  mixle-robust edges MAE; Homoset-Lfixed ties it as a curator; mixle-gauss owns RMSE &amp; bias.</p>
+  <p class="foot">Conflict columns cover the 278 molecules whose replicates fail the homogeneity test.
+  At L=0.6 both noise levels reject every converted source, so they score identically.
+  mixle-robust edges MAE; Homoset (L=0.6) ties it as a curator; mixle-gauss owns RMSE &amp; bias.</p>
 </section>
 
 <section>
-  <h2>The hard cases: 193 conflicted molecules</h2>
-  <p class="sub">Molecules whose measurements disagree by ≥2 kcal/mol — where reconciliation
-  actually matters. Mean absolute error vs FreeSolv (shorter = better).</p>
+  <h2>The hard cases: 278 conflicted molecules</h2>
+  <p class="sub">Molecules whose replicates fail the homogeneity test (RMS beyond the noise level ×
+  0.6 kcal/mol) — where reconciliation actually matters. Mean absolute error vs FreeSolv (shorter = better).</p>
   <div class="bars" id="bars"></div>
   <p class="foot">The hierarchical model halves the raw-median error on conflicts because it
   corrects each source's estimated bias and shrinks contaminated molecules toward the global prior,
@@ -157,26 +157,39 @@
 </section>
 
 <section>
-  <h2>What the noise scale <span style="font-family:var(--serif)">L</span> does</h2>
-  <p class="sub">You flagged this as the crux — and it is. Homoset's entire behaviour turns on L,
-  the denominator in <code>PS = 1 − RMS/L</code>. A source joins the consensus only if
-  <code>PS ≥ ps_crit(n, α=0.01)</code>.</p>
+  <h2>Homoset's two parameters: noise level <span style="font-family:var(--serif)">η</span> and dimension <span style="font-family:var(--serif)">L</span></h2>
+  <p class="sub">The whole method is two knobs. A source joins the <em>homogeneous set</em> iff its
+  relative scatter clears the noise level: <code>noise = RMS/L ≤ η</code>, i.e.
+  <code>PS = 1 − RMS/L ≥ 1 − η</code>. The per-source noise makes the behaviour explicit:</p>
+  <div class="tbl" style="margin-bottom:16px">
+  <table>
+    <thead><tr><th>source</th><th>noise (L adaptive ≈ 5.9–10.3)</th><th>noise (L = 0.6)</th><th>admitted</th></tr></thead>
+    <tbody>
+      <tr><td>KWG · Henry water/gas</td><td>0.14</td><td>1.36</td><td>η ≥ 0.25 (L adaptive)</td></tr>
+      <tr><td>PAIR · vapour-P × sol.</td><td>0.18</td><td>3.01</td><td>η ≥ 0.25 (L adaptive)</td></tr>
+      <tr><td>KGW · Henry gas/water</td><td>0.34</td><td>5.03</td><td>η ≥ 0.50 (L adaptive)</td></tr>
+    </tbody>
+  </table>
+  </div>
   <div class="grid2">
     <div class="card hs">
-      <h3>L adaptive <span class="pill acc">all sources ACCEPT</span></h3>
-      <p>L = ½·(range of the diffs) ≈ 5.9–10.3 kcal/mol here, because a few molecules disagree
-      wildly. That inflates L → PS ≈ 0.86 ≫ crit ≈ 0.47 → the noisy Henry/pairing sources all pass.
-      Consensus barely beats a plain median.</p>
-      <div class="kv">KGW PS 0.86 · KWG 0.86 · PAIR 0.82 &nbsp;→&nbsp; MAE 0.392</div>
+      <h3>L adaptive <span class="pill acc">η tunes how many pass</span></h3>
+      <p>L = ½·(range of the diffs) ≈ 5.9–10.3 kcal/mol, so source noise is 0.14–0.34.
+      At η=0.25 the two cleanest sources (KWG, PAIR) pass but KGW is rejected; at η=0.50 all three pass.
+      More admitted → noisier consensus.</p>
+      <div class="kv">η=0.25 → MAE 0.350 · η=0.50 → MAE 0.392</div>
     </div>
     <div class="card hs">
-      <h3>L fixed 0.6 <span class="pill rej">converted sources REJECT</span></h3>
-      <p>Anchor L to FreeSolv's ~0.6 kcal/mol experimental noise. Now RMS ≫ L → PS &lt; 0 → every
-      converted source fails the gate; only the direct free-energy measurements survive. The PS gate
-      becomes a hard source-quality filter — and wins.</p>
-      <div class="kv">KGW PS −4.03 · KWG −0.36 · PAIR −2.01 &nbsp;→&nbsp; MAE 0.283</div>
+      <h3>L = 0.6 <span class="pill rej">converted sources REJECT</span></h3>
+      <p>Anchor L to FreeSolv's ~0.6 kcal/mol experimental noise. Now source noise is 1.4–5.0 ≫ any η →
+      every converted source fails; only the direct free-energy measurements survive. The gate becomes
+      a hard source-quality filter — and wins, at either noise level.</p>
+      <div class="kv">any η → MAE 0.283 (free-energy only)</div>
     </div>
   </div>
+  <p class="foot">Tellingly, the source Homoset is most reluctant to admit — KGW, the only one rejected
+  at η=0.25 — is exactly the one mixle assigns the largest bias (+1.18 kcal/mol). The two methods
+  independently agree on which source is worst.</p>
 </section>
 
 <section>
@@ -185,7 +198,7 @@
   bias vs the free-energy reference — then corrects it. Learned biases (kcal/mol):</p>
   <div class="tbl">
   <table>
-    <thead><tr><th>source</th><th>meaning</th><th>Homoset (L fixed)</th><th>mixle bias b<sub>s</sub></th><th>mixle σ<sub>s</sub></th></tr></thead>
+    <thead><tr><th>source</th><th>meaning</th><th>Homoset (L=0.6)</th><th>mixle bias b<sub>s</sub></th><th>mixle σ<sub>s</sub></th></tr></thead>
     <tbody>
       <tr><td>FEOH + DGS</td><td>direct free energy</td><td>reference</td><td>0.00 (anchor)</td><td>~0.4</td></tr>
       <tr><td>KWG</td><td>Henry water/gas</td><td class="m-hs">rejected</td><td class="m-mx">+0.30</td><td>1.0</td></tr>
@@ -205,7 +218,7 @@
   <div class="tbl">
   <table>
     <thead><tr><th>molecule (InChIKey)</th><th>obs</th><th>FreeSolv</th><th>raw median</th>
-      <th>Homoset Lfix</th><th>mixle gauss</th><th>mixle robust</th></tr></thead>
+      <th>Homoset L=0.6</th><th>mixle gauss</th><th>mixle robust</th></tr></thead>
     <tbody>
       <tr><td>SHZIWNPUGXLXDT</td><td>5</td><td>−2.23</td><td class="m-hs" style="color:var(--bad)">+3.43</td><td class="win">−2.23</td><td>−2.10</td><td class="win">−2.23</td></tr>
       <tr><td>ZWRUINPWMLAQRD</td><td>9</td><td>−3.88</td><td style="color:var(--bad)">+1.63</td><td class="win">−3.88</td><td>−3.75</td><td class="win">−3.88</td></tr>
@@ -224,9 +237,10 @@
     <div class="vc a">
       <div class="role">Homoset — the curator</div>
       <h3>Transparent triage</h3>
-      <p>Best simple consensus when L is anchored to real experimental noise: the PS gate becomes a
-      source-quality filter and its per-molecule range flag gives a direct <code>use_for_training</code>
-      decision. Accuracy hinges entirely on choosing L; with the data-adaptive L it barely beats a median.</p>
+      <p>Two knobs — noise level η and dimension L. Anchor L to real experimental noise (0.6) and the
+      gate becomes a source-quality filter; its per-molecule homogeneity flag gives a direct
+      <code>use_for_training</code> decision. Accuracy hinges on (η, L); with the data-adaptive L it
+      barely beats a median.</p>
     </div>
     <div class="vc b">
       <div class="role">mixle — the reconciler</div>
@@ -248,13 +262,14 @@
 
 <script>
   const data=[
-    {n:"raw median",v:0.706,c:"#8a9698"},
-    {n:"Homoset · L adaptive",v:0.697,c:"#a8620a"},
-    {n:"Homoset · L fixed 0.6",v:0.410,c:"#c98b3a"},
-    {n:"mixle · robust-t",v:0.388,c:"#3a9a92"},
-    {n:"mixle · gaussian",v:0.382,c:"#0d6b74"},
+    {n:"raw median",v:0.581,c:"#8a9698"},
+    {n:"Homoset · L adaptive η=0.50",v:0.574,c:"#a8620a"},
+    {n:"Homoset · L adaptive η=0.25",v:0.491,c:"#c98b3a"},
+    {n:"Homoset · L=0.6",v:0.357,c:"#d9a86a"},
+    {n:"mixle · gaussian",v:0.359,c:"#0d6b74"},
+    {n:"mixle · robust-t",v:0.354,c:"#3a9a92"},
   ];
-  const max=0.75, host=document.getElementById("bars");
+  const max=0.62, host=document.getElementById("bars");
   data.forEach(d=>{
     const row=document.createElement("div"); row.className="bar";
     row.innerHTML=`<div class="lab">${d.n}</div>

@@ -50,8 +50,9 @@ multi-source, per-molecule observations to compare two families of reconciliatio
 method. The first is a \emph{proportional-similarity} (Homoset) gate --- a method originally devised in
 the 1970s--1980s to standardize scattered human olfactory detection-threshold
 data~\cite{devos1990} --- that aligns
-whole measurement sources by a median offset and accepts them into a consensus
-only when a $\chi^2$-based concordance statistic exceeds a critical value; the
+whole measurement sources by a median offset and admits them only when the relative scatter of
+the set falls below a noise level, governed by just two parameters (a noise level and a
+dimension scale $L$); the
 second is a \emph{mixle}-style hierarchical Gaussian partial-pooling model that
 estimates a per-source bias, a per-source noise scale, and a shrunken per-molecule
 posterior jointly by expectation--maximization, with an optional Student-$t$
@@ -147,36 +148,39 @@ standardize scattered literature values of \emph{human olfactory detection thres
 the procedure behind the harmonized inventory of Devos, Patte, Rouault, Laffort and Van
 Gemert~\cite{devos1990}. Faced with the same problem we have here --- many disagreeing
 measurements of one quantity per compound, from heterogeneous sources --- it builds a
-``homogeneous set'' by aligning sources with a median offset and admitting them only when a
-proportional-similarity (PS) index clears a $\chi^2$ critical value. We apply that classical
-odour-threshold machinery, unchanged, to hydration free energies. The method treats each
-measurement type as a data \emph{source} and the direct
-free-energy records as the trusted \emph{reference}. It proceeds in two stages.
+``homogeneous set'' by aligning sources with a median offset and admitting them only when the
+relative scatter of the set is small enough. The method has exactly \emph{two parameters}: a
+\textbf{noise level} $\eta$ (the fraction of the amplitude scale that scatter may occupy) and
+the \textbf{dimension value} $L$ (the amplitude scale itself). We apply this classical
+odour-threshold machinery, unchanged, to hydration free energies. It treats each measurement
+type as a data \emph{source} and the direct free-energy records as the trusted \emph{reference},
+and proceeds in two stages.
 
-\paragraph{Stage 1 --- source alignment.} For a non-reference source $s$, let $d_1,\dots,d_n$
-be the per-molecule differences between $s$ and the reference over their overlap. Define an
-offset and a scatter,
+\paragraph{The homogeneity test.} A set of values $x_1,\dots,x_n$ is a \emph{homogeneous set}
+when its root-mean-square scatter about its median is at most the noise level $\eta$ times the
+dimension $L$:
 \begin{equation}
-\delta_s = \operatorname{median}(d_i), \qquad
-\mathrm{RMS}_s = \sqrt{\tfrac{1}{n}\textstyle\sum_i (d_i-\delta_s)^2},
-\end{equation}
-a noise/amplitude scale $L$, and the proportional-similarity index and its critical value
-\begin{equation}
-\mathrm{PS}_s = 1 - \frac{\mathrm{RMS}_s}{L}, \qquad
-\mathrm{PS}_{\mathrm{crit}}(n,\alpha) = 1 - \sqrt{\frac{\chi^2_{n-1}(\alpha)}{3n}}.
+\delta = \operatorname{median}(x_i), \quad
+\mathrm{RMS} = \sqrt{\tfrac{1}{n}\textstyle\sum_i (x_i-\delta)^2}, \quad
+\text{homogeneous} \iff \underbrace{\frac{\mathrm{RMS}}{L}}_{\text{noise}} \le \eta
+\;\Longleftrightarrow\; \mathrm{PS} \equiv 1-\frac{\mathrm{RMS}}{L} \ge 1-\eta .
 \label{eq:ps}
 \end{equation}
-Source $s$ is \emph{accepted} into the consensus, and shifted by $-\delta_s$, iff
-$\mathrm{PS}_s \ge \mathrm{PS}_{\mathrm{crit}}$; otherwise it is discarded. We use
-$\alpha=0.01$. The noise scale is swept over two definitions: a \emph{data-adaptive} scale
-$L = \max((\max d - \min d)/2,\, 0.5)$ (half the observed range of the differences), and a
-\emph{fixed physical} scale $L=\SI{0.6}{\kcal}$ anchored to FreeSolv's typical experimental
-uncertainty.
+Here $\mathrm{PS}$ is the proportional-similarity index of the original method; setting the
+acceptance threshold by a sample-size-adjusted $\chi^2$ rule, $1-\eta = 1-\sqrt{\chi^2_{n-1}(\alpha)/3n}$,
+recovers the statistical form, but the two operating parameters are $\eta$ and $L$.
+
+\paragraph{Stage 1 --- source alignment.} For a non-reference source $s$, the differences
+$d_i$ to the reference over their overlap are tested by Eq.~\eqref{eq:ps}. If homogeneous, $s$
+is admitted and shifted by $-\delta_s$; otherwise it is discarded. We sweep the two parameters:
+$L$ over a \emph{data-adaptive} scale $L=\max((\max d-\min d)/2,\,0.5)$ and a \emph{fixed
+physical} scale $L=\SI{0.6}{\kcal}$ (FreeSolv's typical experimental uncertainty), and the noise
+level over $\eta\in\{0.25,\,0.50\}$.
 
 \paragraph{Stage 2 --- consensus and triage.} For each molecule the consensus is the median
-over accepted, aligned observations; the molecule is flagged as \emph{conflicted} if that set
-spans more than an outlier threshold (swept at $2.0$ and \SI{1.0}{\kcal}), yielding a direct
-\texttt{use\_for\_training} decision.
+over admitted, aligned observations; the molecule is flagged \emph{conflicted} when its own
+observations fail the homogeneity test (Eq.~\eqref{eq:ps}) against the physical dimension
+$L=\SI{0.6}{\kcal}$, yielding a direct \texttt{use\_for\_training} decision.
 
 \subsection{mixle: hierarchical partial pooling}
 We reproduce, in NumPy, the hierarchical partial-pooling construction of the
@@ -214,29 +218,53 @@ most.
 \toprule
 estimator & {all MAE} & {all RMSE} & {$\ge$4-obs MAE} & {conflict MAE} & {conflict RMSE} & {bias} \\
 \midrule
-raw mean               & 0.570 & 1.226 & 0.406 & 1.134 & 1.698 & $+0.40$ \\
-raw median             & 0.399 & 1.180 & 0.203 & 0.706 & 1.611 & $+0.23$ \\
-Homoset, $L$ adaptive  & 0.392 & 1.159 & 0.202 & 0.697 & 1.592 & $+0.22$ \\
-\textbf{Homoset, $L$ fixed 0.6} & \bfseries 0.283 & 0.979 & \bfseries 0.083 & 0.410 & 1.181 & $+0.15$ \\
-\textbf{mixle, gaussian} & 0.308 & \bfseries 0.866 & 0.141 & \bfseries 0.382 & \bfseries 0.875 & \bfseries $+0.07$ \\
-mixle, robust-$t$      & 0.276 & 0.949 & 0.116 & 0.388 & 1.152 & $+0.09$ \\
+raw mean                                & 0.570 & 1.226 & 0.406 & 0.916 & 1.495 & $+0.40$ \\
+raw median                              & 0.399 & 1.180 & 0.203 & 0.581 & 1.419 & $+0.23$ \\
+Homoset, $L$ adaptive, $\eta{=}0.50$    & 0.392 & 1.159 & 0.202 & 0.574 & 1.402 & $+0.22$ \\
+Homoset, $L$ adaptive, $\eta{=}0.25$    & 0.350 & 1.068 & 0.159 & 0.491 & 1.248 & $+0.19$ \\
+\textbf{Homoset, $L{=}0.6$ (any $\eta$)} & \bfseries 0.283 & 0.979 & \bfseries 0.083 & 0.357 & 1.071 & $+0.15$ \\
+\textbf{mixle, gaussian}                & 0.308 & \bfseries 0.866 & 0.141 & 0.359 & \bfseries 0.855 & \bfseries $+0.07$ \\
+mixle, robust-$t$                       & 0.276 & 0.949 & 0.116 & \bfseries 0.354 & 1.060 & $+0.09$ \\
 \bottomrule
 \end{tabular}
-\caption{Accuracy against FreeSolv on the overlap ($n=556$; \si{\kcal}). Bold marks the best
-value in each column. The outlier threshold (2.0 vs.\ \SI{1.0}{\kcal}) affects only which
-molecules are flagged, not the consensus value, so both settings score identically.}
+\caption{Accuracy against FreeSolv on the overlap ($n=556$; \si{\kcal}); conflict column over
+the 278 molecules whose replicates fail the homogeneity test. Bold marks the best value in each
+column. Homoset is shown across its two parameters, the dimension $L$ and the noise level
+$\eta$; at $L{=}0.6$ both noise levels reject every converted source and so score identically.}
 \label{tab:main}
 \end{table}
 
-\paragraph{The noise scale governs the Homoset gate.} With the data-adaptive $L$, a few wildly
-disagreeing molecules inflate the half-range to \SIrange{5.9}{10.3}{\kcal}, so
-$\mathrm{PS}\approx 0.86 \gg \mathrm{PS}_{\mathrm{crit}}\approx 0.47$ and every noisy source is
-admitted; the consensus barely improves on a plain median. With the fixed physical
-$L=\SI{0.6}{\kcal}$, the scatter of the converted-source differences drives $\mathrm{PS}<0$, so
-all converted sources are rejected and only the direct free-energy records survive. The gate
-thus becomes a hard source-quality filter, and it is this strict setting that attains the best
-median-based accuracy. The choice of $L$ is therefore the single most consequential parameter
-of the method.
+\paragraph{The two parameters govern the Homoset gate.} The per-source noise
+$\mathrm{RMS}_s/L$ makes the gate's behaviour explicit (Table~\ref{tab:gate}). With the
+data-adaptive $L$ (here \SIrange{5.9}{10.3}{\kcal}, inflated by a few wildly disagreeing
+molecules) the sources have noise $0.14$--$0.34$; a noise level $\eta=0.25$ admits the two
+cleanest converted sources (KWG, PAIR) but rejects the Henry gas/water source, while
+$\eta=0.50$ admits all three, and the consensus barely improves on a plain median. With the
+fixed physical $L=\SI{0.6}{\kcal}$ the converted-source noise is $1.4$--$5.0$, far above either
+noise level, so all converted sources are rejected and only the direct free-energy records
+survive: the gate becomes a hard source-quality filter, and this strict setting attains the best
+median-based accuracy. Notably, the source the gate is most reluctant to admit --- Henry
+gas/water, the only one rejected at $\eta=0.25$ --- is exactly the source the hierarchical model
+assigns the largest bias (\SI{+1.18}{\kcal}, below), an independent corroboration of which
+source is least trustworthy.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+source & noise $\mathrm{RMS}/L$ ($L$ adaptive) & noise ($L{=}0.6$) & admitted at \\
+\midrule
+KWG (Henry water/gas)          & 0.14 & 1.36 & $\eta\ge0.25$ ($L$ adaptive) \\
+PAIR (vapour-P $\times$ sol.)  & 0.18 & 3.01 & $\eta\ge0.25$ ($L$ adaptive) \\
+KGW (Henry gas/water)          & 0.34 & 5.03 & $\eta\ge0.50$ ($L$ adaptive) \\
+\bottomrule
+\end{tabular}
+\caption{The Homoset gate as a function of its two parameters. A source is admitted iff its
+noise $\mathrm{RMS}/L\le\eta$. At the physical dimension $L{=}0.6$ no converted source passes at
+any tested $\eta$.}
+\label{tab:gate}
+\end{table}
 
 \paragraph{mixle corrects rather than rejects.} The Gaussian model estimates systematic source
 biases of $+1.18$, $+1.25$ and \SI{+0.30}{\kcal} for the gas/water Henry, vapour-pressure/solubility

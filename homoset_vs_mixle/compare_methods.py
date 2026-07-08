@@ -66,69 +66,73 @@ def homoset_l_scale(arr):
     return max(float((arr.max() - arr.min()) / 2.0), 0.5)
 
 
-def psi_gate(diffs, L, use_median=True):
-    """Return (offset, psi, n, accepted). offset=median(diffs); accept iff PS>=crit."""
-    x = np.asarray(diffs, float)
+def homogeneity(values, L):
+    """The Homoset test. A set of values is homogeneous iff its scatter is a small
+    enough fraction of the dimension scale L:  noise = RMS/L,  PS = 1 - noise.
+    Returns (offset=median, noise_fraction, n)."""
+    x = np.asarray(values, float)
     x = x[np.isfinite(x)]
-    if len(x) < MIN_OVERLAP:
-        return np.nan, np.nan, len(x), False
-    center = np.median(x) if use_median else np.mean(x)
-    rms = float(np.sqrt(np.mean((x - center) ** 2)))
-    if L <= 0:
-        return np.nan, np.nan, len(x), False
-    psi = 1.0 - rms / L
-    thr = ps_crit(len(x))
-    accepted = bool(np.isfinite(thr) and psi >= thr)
-    return float(center), float(psi), len(x), accepted
+    if len(x) == 0 or L <= 0:
+        return np.nan, np.nan, len(x)
+    off = float(np.median(x))
+    rms = float(np.sqrt(np.mean((x - off) ** 2)))
+    return off, rms / L, len(x)
 
 
-def homoset_reconcile(obs: pd.DataFrame, L_mode: str, outlier_threshold: float):
-    """Two-stage Homoset. L_mode in {'adaptive','fixed'}. Returns per-molecule df + diagnostics."""
-    # per (molecule, source) median
+def homoset_reconcile(obs: pd.DataFrame, L, noise_level: float):
+    """Homoset with its two real parameters.
+      noise_level : max tolerated RMS/L for a set to be a 'homogeneous set' (a fraction, %/100)
+      L           : the dimension/amplitude scale.  L='adaptive' -> max((max-min)/2,0.5) on the
+                    source-vs-reference diffs; else a fixed scalar in kcal/mol (e.g. 0.6).
+    A source is admitted (and offset-aligned) iff its diffs-vs-reference are homogeneous;
+    a molecule is flagged conflicted iff its own observations are NOT homogeneous.
+    """
     src_col = "process"
     ref_mask = obs["route"] == REFERENCE_ROUTE
     obs = obs.copy()
-    obs["is_ref"] = ref_mask
-    # reference per-molecule value = median over free-energy obs
     ref_val = obs[ref_mask].groupby("ikey")["dg_hyd"].median()
+    # per-molecule homogeneity is tested against the physical experimental-noise dimension
+    # (FreeSolv's ~0.6 kcal/mol), so the conflict flag means "replicates disagree beyond
+    # experimental noise" rather than relative to the whole-dataset span.
+    L_mol = 0.6 if L == "adaptive" else float(L)
 
-    # Stage 1: align each non-reference source to the reference
-    offsets = {}
-    gate = {}
+    # Stage 1: source-alignment homogeneity gate
+    offsets, gate = {}, {}
     for s, gs in obs[~ref_mask].groupby(src_col):
         src_val = gs.groupby("ikey")["dg_hyd"].median()
         common = src_val.index.intersection(ref_val.index)
         diffs = (src_val.loc[common] - ref_val.loc[common]).to_numpy()
-        L = homoset_l_scale(diffs) if L_mode == "adaptive" else 0.6
-        offset, psi, n, accepted = psi_gate(diffs, L)
+        L_use = homoset_l_scale(diffs) if L == "adaptive" else float(L)
+        offset, noise, n = homogeneity(diffs, L_use)
+        accepted = bool(n >= MIN_OVERLAP and np.isfinite(noise) and noise <= noise_level)
         offsets[s] = offset if accepted else np.nan
-        gate[s] = dict(psi=psi, n_overlap=n, L=L, ps_crit=ps_crit(n) if n >= 2 else np.nan,
-                       accepted=accepted, offset=offset)
-    # reference sources have zero offset and are always accepted
+        gate[s] = dict(noise=noise, ps=1.0 - noise if np.isfinite(noise) else np.nan,
+                       n_overlap=n, L=L_use, accepted=accepted, offset=offset)
     for s in obs[ref_mask][src_col].unique():
         offsets[s] = 0.0
-        gate[s] = dict(psi=1.0, n_overlap=int((obs[src_col] == s).sum()), L=np.nan,
-                       ps_crit=np.nan, accepted=True, offset=0.0)
+        gate[s] = dict(noise=0.0, ps=1.0, n_overlap=int((obs[src_col] == s).sum()),
+                       L=np.nan, accepted=True, offset=0.0)
 
-    # Stage 2: build aligned observation set (accepted sources only), consensus + flag
+    # Stage 2: consensus over accepted/aligned obs + per-molecule homogeneity flag
     obs["offset"] = obs[src_col].map(offsets)
     obs["accepted_src"] = obs["offset"].notna()
     obs["aligned"] = obs["dg_hyd"] - obs["offset"]
     rows = []
     for ik, g in obs.groupby("ikey", sort=False):
         acc = g[g["accepted_src"]]
-        used = acc if len(acc) else g            # fallback to raw if no accepted source
+        used = acc if len(acc) else g
         v = used["aligned"].to_numpy() if len(acc) else used["dg_hyd"].to_numpy()
         n = len(v)
-        rng = float(v.max() - v.min()) if n else np.nan
+        _, noise_mol, _ = homogeneity(v, L_mol)
         rows.append(dict(
             ikey=ik, n_obs=int(len(g)), n_used=int(n),
             n_sources=int(g[src_col].nunique()),
             n_accepted_sources=int(acc[src_col].nunique()),
             consensus=float(np.median(v)),
-            obs_range=rng, obs_std=float(np.std(v)) if n else np.nan,
+            obs_range=float(v.max() - v.min()) if n else np.nan,
+            noise_mol=float(noise_mol) if np.isfinite(noise_mol) else np.nan,
             fell_back_raw=bool(len(acc) == 0),
-            conflict=bool(n >= 2 and rng >= outlier_threshold),
+            conflict=bool(n >= 2 and np.isfinite(noise_mol) and noise_mol > noise_level),
         ))
     return pd.DataFrame(rows), gate
 
@@ -207,30 +211,35 @@ def metrics(pred, truth):
                 medAE=float(np.median(np.abs(d))), bias=float(d.mean()))
 
 
+# Homoset's two parameters swept as a 2-D grid: dimension scale L x noise level.
+L_GRID = [("adaptive", "adaptive"), (0.6, "0.6")]        # (value, label)
+NOISE_GRID = [0.25, 0.50]                                # tolerated RMS/L (25%, 50%)
+PRIMARY = ("adaptive", 0.50)                             # config whose conflict flag is carried
+
+
 def main():
     obs, fsdf = load()
     base = obs.groupby("ikey")["dg_hyd"].agg(raw_mean="mean", raw_median="median",
                                              n_obs="size").reset_index()
 
-    # Homoset variants (L x threshold sweep)
-    hs_tables = {}
-    hs_gates = {}
-    for L_mode in ["adaptive", "fixed"]:
-        for thr in [2.0, 1.0]:
-            key = f"homoset_L{L_mode}_t{thr}"
-            tab, gate = homoset_reconcile(obs, L_mode, thr)
+    # Homoset 2-D parameter sweep (L x noise_level)
+    hs_tables, hs_gates, hs_conflict = {}, {}, {}
+    for L_val, L_lab in L_GRID:
+        for nl in NOISE_GRID:
+            key = f"homoset_L{L_lab}_noise{int(nl*100)}"
+            tab, gate = homoset_reconcile(obs, L_val, nl)
             hs_tables[key] = tab.rename(columns={"consensus": key})
-            hs_gates[f"L{L_mode}"] = gate
+            hs_gates[key] = gate
+            hs_conflict[key] = tab.set_index("ikey")["conflict"]
 
-    # mixle variants
     mg, hp_g = mixle_em(obs, robust=False)
     mr, hp_r = mixle_em(obs, robust=True)
 
     tab = base.copy()
     for key, t in hs_tables.items():
         tab = tab.merge(t[["ikey", key]], on="ikey", how="left")
-    # carry conflict flags + counts from the primary homoset config
-    prim, _ = homoset_reconcile(obs, "adaptive", 2.0)
+    prim_key = f"homoset_L{PRIMARY[0] if PRIMARY[0]=='adaptive' else '0.6'}_noise{int(PRIMARY[1]*100)}"
+    prim, _ = homoset_reconcile(obs, PRIMARY[0], PRIMARY[1])
     tab = tab.merge(prim[["ikey", "conflict", "n_sources", "n_accepted_sources", "fell_back_raw"]],
                     on="ikey", how="left")
     tab = tab.merge(mg, on="ikey").merge(mr, on="ikey")
@@ -239,16 +248,16 @@ def main():
     ev = tab.merge(fsdf, on="ikey", how="inner")
     ev.to_csv(OUT / "overlap_freesolv_estimates.csv", index=False)
 
-    estimators = (["raw_mean", "raw_median"]
-                  + list(hs_tables.keys())
+    estimators = (["raw_mean", "raw_median"] + list(hs_tables.keys())
                   + ["mixle_gauss", "mixle_robust"])
 
-    report = {"alpha": ALPHA, "reference_route": REFERENCE_ROUTE,
+    report = {"reference_route": REFERENCE_ROUTE,
+              "homoset_parameters": {"L_grid": [l for _, l in L_GRID], "noise_levels": NOISE_GRID,
+                                     "primary_config": prim_key},
               "hyperparams_gauss": hp_g, "hyperparams_robust": hp_r,
               "homoset_source_gates": hs_gates,
-              "n_molecules_total": int(len(tab)),
-              "n_overlap_freesolv": int(len(ev)),
-              "n_conflict_overlap": int(ev["conflict"].sum())}
+              "n_molecules_total": int(len(tab)), "n_overlap_freesolv": int(len(ev)),
+              "n_conflict_overlap_primary": int(ev["conflict"].sum())}
 
     def block(sub, name):
         report[name] = {"n": int(len(sub)),
@@ -261,26 +270,27 @@ def main():
     (OUT / "comparison_report.json").write_text(json.dumps(report, indent=2, default=str))
 
     # ---- print ----
-    print(f"Overlap Guthrie n FreeSolv: {len(ev)} molecules  "
-          f"({int(ev['conflict'].sum())} flagged conflicted by Homoset adaptive/2.0)\n")
-    print("Homoset source gates (adaptive L):")
-    for s, gd in hs_gates["Ladaptive"].items():
-        print(f"    {s:6s} n_overlap={gd['n_overlap']:>4}  L={gd['L'] if isinstance(gd['L'],float) else gd['L']:>6}"
-              f"  PS={gd['psi']:.3f}  crit={gd['ps_crit']:.3f}  offset={gd['offset']}  "
-              f"{'ACCEPT' if gd['accepted'] else 'REJECT'}")
-    print("\nHomoset source gates (fixed L=0.6):")
-    for s, gd in hs_gates["Lfixed"].items():
-        print(f"    {s:6s} n_overlap={gd['n_overlap']:>4}  PS={gd['psi']:.3f}  crit={gd['ps_crit']:.3f}  "
-              f"offset={gd['offset']}  {'ACCEPT' if gd['accepted'] else 'REJECT'}")
+    print(f"Overlap Guthrie n FreeSolv: {len(ev)} molecules\n")
+    print("HOMOSET two parameters — source-gate outcome across the (L, noise level) grid:")
+    print("  a source joins the homogeneous set iff  noise = RMS/L <= noise_level\n")
+    for key in hs_tables:
+        gd = hs_gates[key]
+        acc = [s for s in gd if gd[s]["accepted"] and s not in ("FEOH", "DGS")]
+        print(f"  {key:28s} admits non-ref sources: {acc if acc else '[] (free-energy only)'}")
+        for s in ["KWG", "KGW", "PAIR"]:
+            if s in gd:
+                g = gd[s]
+                print(f"      {s:5s} noise={g['noise']:.2f} (L={g['L']:.2f})  "
+                      f"{'ACCEPT' if g['accepted'] else 'REJECT'}")
     print(f"\nmixle gauss  : mu0={hp_g['mu0']:.2f} tau={hp_g['tau']:.2f}  source_bias={hp_g['source_bias']}")
     print(f"mixle robust : mu0={hp_r['mu0']:.2f} tau={hp_r['tau']:.2f} nu={hp_r['nu']}  source_bias={hp_r['source_bias']}\n")
     for name in ["all_overlap", "ge2_obs", "ge4_obs", "conflict_molecules", "clean_multi_obs"]:
         b = report[name]
         print(f"=== {name}  (n={b['n']}) ===")
-        print(f"    {'estimator':24s} {'MAE':>7} {'RMSE':>7} {'medAE':>7} {'bias':>7}")
+        print(f"    {'estimator':30s} {'MAE':>7} {'RMSE':>7} {'medAE':>7} {'bias':>7}")
         for est in estimators:
             m = b[est]
-            print(f"    {est:24s} {m['MAE']:7.3f} {m['RMSE']:7.3f} {m['medAE']:7.3f} {m['bias']:+7.3f}")
+            print(f"    {est:30s} {m['MAE']:7.3f} {m['RMSE']:7.3f} {m['medAE']:7.3f} {m['bias']:+7.3f}")
         print()
 
 

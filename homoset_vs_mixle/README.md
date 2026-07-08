@@ -26,13 +26,14 @@ Requires `rdkit`, `numpy`, `pandas`, `scipy`, and a local FreeSolv `database.jso
 ## Headline (556-molecule FreeSolv overlap, kcal/mol)
 | method | all MAE | all RMSE | conflict MAE | bias |
 |---|---|---|---|---|
-| raw median | 0.399 | 1.180 | 0.706 | +0.23 |
-| Homoset (L fixed 0.6) | **0.283** | 0.979 | 0.410 | +0.15 |
-| mixle (gaussian) | 0.308 | **0.866** | **0.382** | **+0.07** |
-| mixle (robust-t) | 0.276 | 0.949 | 0.388 | +0.09 |
+| raw median | 0.399 | 1.180 | 0.581 | +0.23 |
+| Homoset (L=0.6, any η) | **0.283** | 0.979 | 0.357 | +0.15 |
+| mixle (gaussian) | 0.308 | **0.866** | 0.359 | **+0.07** |
+| mixle (robust-t) | 0.276 | 0.949 | **0.354** | +0.09 |
 
-Homoset is the better transparent **curator** (its PS-gate noise scale L is the crux —
-anchor it to real experimental noise and it filters bad sources); mixle is the better
+The **Homoset gate has two parameters** — the noise level η (tolerated RMS/L) and the dimension
+value L; a source joins the homogeneous set iff `RMS/L ≤ η`. Homoset is the better transparent
+**curator** (anchor L to real experimental noise, L=0.6, and it filters bad sources); mixle is the better
 **reconciler** (lowest RMSE/bias, corrects per-source bias, rescues no-reference molecules).
 Use both. See `REPORT.md` / `PAPER.tex` for details.
 
