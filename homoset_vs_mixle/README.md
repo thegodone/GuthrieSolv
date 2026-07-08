@@ -9,6 +9,7 @@ per molecule, and comparing two curation philosophies against FreeSolv.
 |---|---|
 | `unit_rules.py` | **declarative dimensional-analysis rule engine** for units (de-wrap → tokenise → net dimensions → classify → convert); adding a unit = one table row. Converts 65 combos, FreeSolv MAE 0.275 |
 | `harmonize_rules.py` | runs the rule engine over GuthrieSolv, compares coverage/accuracy vs the switchboard |
+| `guthrie_metadata.py` | uses Guthrie's Excel-only columns (`final` ΔG, `error1` trust flag, pH): three-way Guthrie-vs-ours-vs-FreeSolv + trust-flag effect |
 | `harmonize_guthrie.py` | original regex switchboard (172 units → Ben-Naim ΔG_hyd, kcal/mol), T-corrected, keyed by InChIKey |
 | `calibrate_units_loop.py` | active-learning loop: calibrate long-tail units against anchors, admit via Homoset noise gate, feed back, loop until dry (single pass) |
 | `calibrate_units_iterative.py` | outer fixed-point / co-training wrapper: reconcile → re-anchor → anneal gate strict→loose → repeat until dry (19 units, +135 molecules on the bug-fixed base) |

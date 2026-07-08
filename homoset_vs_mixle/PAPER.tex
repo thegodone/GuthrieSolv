@@ -210,6 +210,19 @@ handful of strings it still cannot infer (\texttt{MPv/(RTCw)}, \texttt{logK=y/x 
 the exotic named expressions the active-learning loop calibrates --- a clean division of labour
 between deterministic rules and data-driven fallback.
 
+\subsection{Guthrie's own metadata: a third estimate and a trust flag}
+\label{sec:meta}
+The original Excel carries columns the flat CSV drops: \texttt{final} (Guthrie's \emph{own}
+converted $\dGhyd$, \num{737} rows), \texttt{error1} (a per-measurement \emph{trust flag} --- the
+value \SI{1.93}{\kcal}, and its kJ twin \num{8.08}, mark data he judged untrustworthy), and pH
+conditions. Two findings follow. First, on the \num{176} molecules where Guthrie hand-computed a
+$\dGhyd$ that also appears in FreeSolv, our automated rule-engine-plus-median consensus is
+\emph{closer to FreeSolv} than his own values (MAE \SI{0.153}{} vs \SI{0.267}{\kcal}; $R=0.988$ vs
+$0.943$): pooling the redundant measurements beats a single curated number. Second, using his trust
+flag as a hard filter \emph{hurts} --- dropping the \num{2884} flagged observations worsens FreeSolv
+agreement from \SI{0.195}{} to \SI{0.240}{\kcal} --- so it belongs as a soft observation weight in
+the hierarchical model, not a cut.
+
 \section{Methods}
 
 \subsection{Homoset: a proportional-similarity consensus gate}

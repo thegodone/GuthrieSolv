@@ -85,6 +85,28 @@ a new code branch.
 
 Output: `outputs/guthrie_dg_observations_rules.csv`, `outputs/rule_engine_report.json`.
 
+## 1d. Guthrie's own metadata — a third method + trust flags (`guthrie_metadata.py`)
+The Excel carries columns the flat CSV pipeline ignored: `final` (Guthrie's *own* converted ΔG_hyd,
+737 rows kcal/mol), `error1` (his per-measurement **trust flag** — 1.93 kcal/mol, and its kJ twin
+8.08, mark data he judged "not particularly trustworthy"), and pH conditions in `comments`.
+
+**Guthrie-as-a-third-method** (176 molecules where he has a `final` ΔG ∩ ours ∩ FreeSolv):
+
+| estimate | MAE | R |
+|---|---|---|
+| **Guthrie's own `final` ΔG** | 0.267 | 0.943 |
+| **ours (rule engine + median)** | **0.153** | **0.988** |
+
+On the very molecules the original curator hand-converted, our automated multi-source pooling is
+**closer to FreeSolv** — the redundancy across measurements beats a single curated value.
+
+**Trust flag as a filter *hurts*.** Dropping the 2,884 obs Guthrie flagged untrustworthy makes
+FreeSolv agreement *worse* (MAE 0.195 → 0.240): the 1.93 flag is a blunt blanket default, and the
+averaging benefit of keeping the rows outweighs it. Conclusion: feed it as a **soft weight** (mixle
+observation precision), never a hard cut. pH metadata (92 ionizable-drug rows, mostly pH 2) tags
+AQSOL rows so acid/base solubilities at different pH aren't naively pooled. Output:
+`outputs/guthrie_metadata_report.json`.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
