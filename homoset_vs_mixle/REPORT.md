@@ -157,6 +157,14 @@ curated); they agree to ~0.8 kcal/mol (2,177 overlap), so meta37 is effectively 
 fold in — GuthrieSolv's accuracy where it has data, meta37's coverage elsewhere.
 See `outputs/dghyd_sources_compared.png`.
 
+**The extension is symmetric** — since Henry ↔ ΔG_hyd (×1.364), GuthrieSolv's reconciled ΔG
+*extends meta37's sparse `logHenrycc`* too. Converting GuthrieSolv mixle ΔG → logHenrycc adds **733
+molecules** meta37 lacked (union **4,919**, +18 %), and for the 2,675 it covers it supplies the
+*more accurate* value (ΔG validated at 0.19 vs meta37's 0.37). The best-of-both set
+(`outputs/extended_logHenrycc.csv`) is **GuthrieSolv-reconciled where literature exists (2,675) +
+meta37-model elsewhere (2,244)** — broader *and* more accurate than either alone. So the two
+datasets mutually extend each other across the interconvertible quantities (ΔG_hyd ↔ Henry ↔ VP/WS).
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
