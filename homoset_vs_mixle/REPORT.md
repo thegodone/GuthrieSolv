@@ -119,10 +119,14 @@ validated against independent references, extending the FreeSolv-for-ΔG idea:
 - **Solubility is excellent** — GuthrieSolv's AQSOL extraction matches the dedicated AqSolDB to
   0.15 log units (R 0.98, zero bias): the multi-source curation yields solubility as good as the
   reference database.
-- **VP is the noisy input** (MAE ~1 log, R 0.82), with a visible artifact band of entries pinned
-  near ~1 atm (boiling-point / 1-atm rows). This matters for Henry (= VP − WS): **WS is solid, VP is
-  the noise source** — one reason the VP×solubility-paired Henry only partly explained the air↔water
-  ODT gap. See `outputs/guthrie_vs_aqsoldb_vp.png`.
+- **VP is the noisy input** (MAE ~1 log, R 0.82), with a visible artifact band pinned near ~1 atm.
+  **meta37's BP confirms the cause**: those 1,506 band rows were measured within a median of **12 K
+  of the boiling point** (vs 85 K for all other VP rows) — i.e. they are vapour pressures measured
+  *at* BP (where VP = 1 atm), taken uncorrected as if at 25 °C. **The fix**: restricting to VP
+  measured near 25 °C drops the MAE vs unified_VP from **1.03 → 0.67** and lifts R **0.83 → 0.90**;
+  meta37's `deltaHvap_kJmol` enables a proper Clausius–Clapeyron correction to keep all rows. So for
+  Henry (= VP − WS): **WS is solid, VP is the noise source, and most of that noise is un-corrected
+  measurement temperature.** See `outputs/guthrie_vs_aqsoldb_vp.png`.
 
 ## 2. The two methods
 
