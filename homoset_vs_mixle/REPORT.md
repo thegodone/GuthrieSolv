@@ -137,6 +137,26 @@ using a cached meta37 ΔHvap-by-InChIKey table before pairing. Effect: the VP×s
 per-observation residual median drops to **0.02**, and the overall harmonized-median FreeSolv MAE
 improves **0.299 → 0.290** (R 0.965), with no coverage loss.
 
+## 1f. ΔG_hyd sources compared — meta37 breadth vs reconciliation accuracy (`meta37_dghyd.py`)
+meta37's Henry constant is an independent, model-derived ΔG_hyd generator (log K_aw → ΔG; the
+calibration slope came out −1.38 ≈ RT·ln10, recovering the physics from data). Generated from
+meta37 + unified_VP:
+
+| ΔG_hyd source | molecules | MAE vs FreeSolv | R |
+|---|---|---|---|
+| meta37 Henry (`logHenrycc`) | 4,186 | 0.373 | 0.963 |
+| meta37 VP × WS pairing | 2,721 | 0.68 | 0.925 |
+| **meta37 union** | **5,020** | 0.395 | 0.956 |
+| GuthrieSolv Homoset (reconciled) | 2,675 | 0.205 | 0.973 |
+| GuthrieSolv mixle (reconciled) | 2,675 | **0.186** | **0.978** |
+
+On the 545 molecules with all three, the **curated literature reconciliation is ~2× more accurate**
+than meta37's model ΔG (mixle 0.186 vs 0.373), and **mixle edges Homoset** (0.186 vs 0.205). Clean
+trade-off: **meta37 = breadth** (5,020 mols, model) vs **GuthrieSolv = accuracy** (2,675 mols,
+curated); they agree to ~0.8 kcal/mol (2,177 overlap), so meta37 is effectively a third source to
+fold in — GuthrieSolv's accuracy where it has data, meta37's coverage elsewhere.
+See `outputs/dghyd_sources_compared.png`.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
