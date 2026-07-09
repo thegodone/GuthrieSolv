@@ -128,6 +128,11 @@ validated against independent references, extending the FreeSolv-for-ΔG idea:
   Henry (= VP − WS): **WS is solid, VP is the noise source, and most of that noise is un-corrected
   measurement temperature.** See `outputs/guthrie_vs_aqsoldb_vp.png`.
 
+**Fix implemented** (`vp_temperature_correction.py`): Clausius–Clapeyron with meta37 ΔHvap,
+`log₁₀P(298) = log₁₀P(T) − (ΔHvap/R)/ln10 · (1/298 − 1/T)`. On the 759 correctable molecules the
+VP↔unified_VP agreement jumps from **MAE 0.687 / R 0.848 → 0.262 / 0.931** — a 62 % error cut, taking
+VP from the noisiest input to near solubility grade. ΔHvap covers 45.5 % of VP rows.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
