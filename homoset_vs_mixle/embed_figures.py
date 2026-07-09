@@ -19,6 +19,9 @@ FIGS = [
     ("guthrie_homoset_vs_mixle.png",
      "GuthrieSolv reconciliation vs FreeSolv truth: Homoset and mixle both hug the diagonal; the "
      "third panel colours each molecule green where mixle beats Homoset."),
+    ("guthrie_vs_aqsoldb_vp.png",
+     "GuthrieSolv's inputs vs independent references: solubility matches AqSolDB tightly (R 0.98); "
+     "vapour pressure is noisier (R 0.82) with a boiling-point artifact, fixed by Clausius–Clapeyron."),
 ]
 
 
