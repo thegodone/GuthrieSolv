@@ -107,6 +107,23 @@ observation precision), never a hard cut. pH metadata (92 ionizable-drug rows, m
 AQSOL rows so acid/base solubilities at different pH aren't naively pooled. Output:
 `outputs/guthrie_metadata_report.json`.
 
+## 1e. Cross-validating the solubility & VP extractions (`compare_aqsoldb_vp.py`)
+Two of the harmonization inputs — aqueous solubility (AQSOL) and vapour pressure (VP) — can be
+validated against independent references, extending the FreeSolv-for-ΔG idea:
+
+| GuthrieSolv property | reference | overlap | MAE (log) | R | bias |
+|---|---|---|---|---|---|
+| AQSOL solubility | **AqSolDB** (mcsorkun, 9,982 mols) | 2,726 | **0.153** | **0.980** | 0.00 |
+| VP vapour pressure | unified_VP (25 °C) | 1,582 | 1.056 | 0.817 | +0.36 |
+
+- **Solubility is excellent** — GuthrieSolv's AQSOL extraction matches the dedicated AqSolDB to
+  0.15 log units (R 0.98, zero bias): the multi-source curation yields solubility as good as the
+  reference database.
+- **VP is the noisy input** (MAE ~1 log, R 0.82), with a visible artifact band of entries pinned
+  near ~1 atm (boiling-point / 1-atm rows). This matters for Henry (= VP − WS): **WS is solid, VP is
+  the noise source** — one reason the VP×solubility-paired Henry only partly explained the air↔water
+  ODT gap. See `outputs/guthrie_vs_aqsoldb_vp.png`.
+
 ## 2. The two methods
 
 **Homoset** — the "homogeneous set" / proportional-similarity procedure originally developed in
