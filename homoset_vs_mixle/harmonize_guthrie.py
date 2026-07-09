@@ -291,6 +291,22 @@ def inchikey(smiles: str):
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
+_DHVAP = None
+def _dhvap_map() -> dict:
+    """InChIKey -> dHvap (J/mol) from the cached meta37 table (empty if absent)."""
+    global _DHVAP
+    if _DHVAP is None:
+        _DHVAP = {}
+        f = OUT / "meta37_dhvap_by_inchikey.csv"
+        try:
+            if f.exists():
+                dd = pd.read_csv(f)
+                _DHVAP = {k: float(x) * 1000.0 for k, x in zip(dd["ikey"], dd["dHvap_kJmol"])}
+        except Exception:
+            pass
+    return _DHVAP
+
+
 def main() -> None:
     df = pd.read_csv(SRC, encoding="latin1", low_memory=False)
     df["value1"] = df["value1"].map(parse_val)
@@ -341,7 +357,14 @@ def main() -> None:
         elif proc == "VP":
             pa = to_pascal(unit, v)
             if math.isfinite(pa) and pa > 0:
-                vp_rows.append((ik, smi, pa, T, err))
+                # Clausius-Clapeyron correct VP to 25 C when meta37 dHvap is known
+                # (many rows were measured at/near the boiling point -> VP~=1 atm artifact).
+                Tvp = T
+                dh = _dhvap_map().get(ik)
+                if dh is not None and math.isfinite(T) and T > 0:
+                    pa *= 10.0 ** (-(dh / R_SI / math.log(10.0)) * (1.0 / 298.15 - 1.0 / T))
+                    Tvp = 298.15
+                vp_rows.append((ik, smi, pa, Tvp, err))
                 n_by_route["vp"] += 1
             else:
                 n_by_route["unconverted"] += 1

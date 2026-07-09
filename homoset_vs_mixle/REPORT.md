@@ -132,6 +132,10 @@ validated against independent references, extending the FreeSolv-for-ΔG idea:
 `log₁₀P(298) = log₁₀P(T) − (ΔHvap/R)/ln10 · (1/298 − 1/T)`. On the 759 correctable molecules the
 VP↔unified_VP agreement jumps from **MAE 0.687 / R 0.848 → 0.262 / 0.931** — a 62 % error cut, taking
 VP from the noisiest input to near solubility grade. ΔHvap covers 45.5 % of VP rows.
+**Now integrated into `harmonize_guthrie.py`**: the VP route Clausius–Clapeyron-corrects to 25 °C
+using a cached meta37 ΔHvap-by-InChIKey table before pairing. Effect: the VP×solubility route's
+per-observation residual median drops to **0.02**, and the overall harmonized-median FreeSolv MAE
+improves **0.299 → 0.290** (R 0.965), with no coverage loss.
 
 ## 2. The two methods
 
